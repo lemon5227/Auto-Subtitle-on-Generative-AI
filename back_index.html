@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>自动提取字幕的视频播放器</title>
+</head>
+<body>
+    <h1>自动提取字幕的视频播放器</h1>
+    
+    <!-- 视频播放区域 -->
+    <div id="videoContainer">
+        <video controls id="videoPlayer" width="640" height="360">
+            <!-- 播放原始上传的视频文件 -->
+            <source src="" type="video/mp4">
+            <!-- 添加字幕 -->
+            <track src="" kind="subtitles" srclang="en" label="English">
+            您的浏览器不支持视频播放。
+        </video>
+    </div>
+
+    <!-- 上传视频功能 -->
+    <div>
+        <input type="file" id="fileInput">
+        <button onclick="uploadVideo()">上传并提取字幕</button>
+    </div>
+
+    <script>
+        // 上传视频并提取字幕
+        function uploadVideo() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // 更新视频源和字幕
+                    const videoPlayer = document.getElementById('videoPlayer');
+                    videoPlayer.src = data.merged_video_path;
+                    // 获取字幕文件的路径（根据你的文件保存路径修改）
+                    const subtitlesPath = '/save/subtitles.srt';
+
+                    // 检查是否存在字幕元素，若不存在则创建
+                    let track = videoPlayer.querySelector('track');
+                    if (!track) {
+                        track = document.createElement('track');
+                        track.kind = 'subtitles';
+                        track.srclang = 'en';
+                        track.label = 'English';
+                        videoPlayer.appendChild(track);
+                    }
+                    // 更新字幕路径
+                    track.src = subtitlesPath;
+                })
+                .catch(error => console.error('错误：', error));
+            } else {
+                alert('请选择要上传的视频文件');
+            }
+        }
+    </script>
+</body>
+</html>
