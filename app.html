@@ -5,22 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Subtitle Generator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Improved typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root{
+            --bg:#f4f7fb;
+            --card:#ffffff;
+            --primary:#2F88FF;
+            --muted:#6c757d;
+            --accent:#1f6feb;
+            --success:#28a745;
+            --danger:#dc3545;
+            --shadow: 0 6px 18px rgba(31,40,60,0.08);
+            --overlay-bg: rgba(0,0,0,0.6);
+        }
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            color: #0f1724;
         }
         .container {
             max-width: 1200px;
         }
         .subtitle-editor {
-            height: 400px;
+            height: 360px;
             overflow-y: auto;
-            border: 1px solid #ced4da;
-            padding: 10px;
-            background-color: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(15,23,36,0.08);
+            padding: 12px;
+            background-color: var(--card);
+            box-shadow: var(--shadow);
         }
         #status {
             font-weight: bold;
+        }
+        /* Card-like controls */
+        .controls-card{ background:var(--card); padding:16px; border-radius:10px; box-shadow:var(--shadow); }
+        .btn-primary{ background:var(--primary); border-color:var(--primary); }
+        .btn-primary:hover{ background:var(--accent); border-color:var(--accent); }
+        .btn-outline-secondary{ border-radius:8px; }
+        .input-group .form-control{ border-radius:8px; }
+        /* player styling */
+        #playerContainer{ background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(255,255,255,0.02)); padding:12px; border-radius:10px; box-shadow:var(--shadow); }
+        #videoPlayer{ border-radius:8px; background:#000; max-height:520px; }
+        /* subtitle overlay improved readability */
+        #subtitleOverlay{ display:none; pointer-events:none; color:var(--card); text-shadow:0 2px 6px rgba(0,0,0,0.6); font-weight:600; font-size:18px; line-height:1.3; max-width:90%; margin:0 auto; background:var(--overlay-bg); padding:8px 14px; border-radius:6px;}
+        /* small svg icon alignment helper */
+        .icon-inline{ vertical-align:middle; margin-right:6px; }
+        /* model management modal tweaks */
+        .modal-body .list-group-item{ display:flex; justify-content:space-between; align-items:center; }
+        .subtitle-editor[contenteditable]{ min-height: 350px; }
+        /* responsive tweaks */
+        @media (max-width: 768px){
+            #videoPlayer{ max-height:360px; }
+            .subtitle-editor{ height:260px; }
         }
     </style>
 </head>
@@ -29,7 +67,8 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="text-center">AI Subtitle Generator</h1>
             <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modelManagementModal">
-                <i-icon type="setting" theme="outline" size="18" style="vertical-align:middle; margin-right:6px;"></i-icon>
+                <!-- setting icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-right:6px;"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.31 4.1a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09c.12.64.5 1.2 1 1.51h.28a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.3.66.64.9 1.02z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Model Management
             </button>
         </div>
@@ -42,8 +81,8 @@
                 <input type="text" id="selectedVideoName" class="form-control mt-2" placeholder="No video selected" readonly>
                 <div class="input-group mt-2">
                     <input id="videoUrlInput" class="form-control" placeholder="Or paste YouTube/video URL here">
-                    <button class="btn btn-outline-secondary" id="fetchBtn"><i-icon type="download" theme="outline" size="16" style="vertical-align:middle; margin-right:6px;"></i-icon>Fetch</button>
-                    <button class="btn btn-outline-secondary ms-2" id="previewBtn"><i-icon type="video-play" theme="outline" size="16" style="vertical-align:middle; margin-right:6px;"></i-icon>Preview</button>
+                    <button class="btn btn-outline-secondary" id="fetchBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Fetch</button>
+                    <button class="btn btn-outline-secondary ms-2" id="previewBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M4 4v16l16-8-16-8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Preview</button>
                 </div>
             </div>
             <div class="col-md-3">
@@ -66,7 +105,7 @@
                 <select class="form-select" id="targetLangSelect"></select>
             </div>
                 <div class="col-md-2 d-grid align-self-end">
-                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()"><i-icon type="rocket" theme="outline" size="18" style="vertical-align:middle; margin-right:6px;"></i-icon>Generate</button>
+                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Generate</button>
             </div>
             <div class="col-md-2">
                 <label for="subtitleModeSelect" class="form-label">Subtitle Mode</label>
@@ -710,9 +749,9 @@
             downloadVTT(filename, translatedSubtitlesEl.innerText);
         });
 
-    // Enhance Download buttons with icons (IconPark will render these once the web script loads)
-    downloadOriginalBtn.innerHTML = '<i-icon type="file-download" theme="outline" size="14" style="vertical-align:middle; margin-right:6px;"></i-icon>Download VTT';
-    downloadTranslatedBtn.innerHTML = '<i-icon type="file-download" theme="outline" size="14" style="vertical-align:middle; margin-right:6px;"></i-icon>Download VTT';
+    // Enhance Download buttons with inline SVG icons
+    downloadOriginalBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
+    downloadTranslatedBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
 
         // Subtitle style controls: color and font size
         const subtitleColorEl = document.getElementById('subtitleColor');
@@ -810,12 +849,12 @@
 
         function createStatusBadge(status, modelType, modelKey) {
             if (status === 'Ready') {
-                return `<span class="badge bg-success me-2"><i-icon type=\"check\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}"><i-icon type=\"delete\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Delete</button>`;
+                return `<span class="badge bg-success me-2"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M20 6L9 17l-5-5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M3 6h18\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M14 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Delete</button>`;
             }
             if (status === 'Downloading...') {
-                return `<span class="badge bg-warning"><i-icon type=\"download\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Downloading...</span>`;
+                return `<span class="badge bg-warning"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Downloading...</span>`;
             }
-            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}"><i-icon type=\"download\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Download</button>`;
+            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Download</button>`;
         }
 
         async function handleModelManagementClick(e) {
@@ -905,7 +944,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- IconPark Web (unpkg CDN) -->
-    <script src="https://unpkg.com/@icon-park/web/dist/index.min.js"></script>
+    <!-- IconPark removed: using inline SVG icons to avoid external CDN dependency -->
 </body>
 </html>
