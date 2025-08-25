@@ -38,10 +38,23 @@
             <div class="col-md-4">
                 <label for="videoFile" class="form-label">1. Select Video File</label>
                 <input class="form-control" type="file" id="videoFile" accept="video/*">
+                <input type="text" id="selectedVideoName" class="form-control mt-2" placeholder="No video selected" readonly>
+                <div class="input-group mt-2">
+                    <input id="videoUrlInput" class="form-control" placeholder="Or paste YouTube/video URL here">
+                    <button class="btn btn-outline-secondary" id="fetchBtn">Fetch</button>
+                    <button class="btn btn-outline-secondary ms-2" id="previewBtn">Preview</button>
+                </div>
             </div>
             <div class="col-md-3">
                 <label for="modelSelect" class="form-label">2. Choose Model</label>
                 <select class="form-select" id="modelSelect"></select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Faster Whisper</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="" id="useFasterCheck">
+                    <label class="form-check-label" for="useFasterCheck">Use faster-whisper</label>
+                </div>
             </div>
             <div class="col-md-2">
                 <label for="sourceLangSelect" class="form-label">3. Translate From</label>
@@ -53,6 +66,22 @@
             </div>
             <div class="col-md-2 d-grid align-self-end">
                 <button class="btn btn-primary" id="generateBtn" onclick="startProcess()">Generate</button>
+            </div>
+            <div class="col-md-2">
+                <label for="subtitleModeSelect" class="form-label">Subtitle Mode</label>
+                <select class="form-select" id="subtitleModeSelect">
+                    <option value="original">Original</option>
+                    <option value="translated">Translated</option>
+                    <option value="bilingual">Bilingual</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Subtitle Style</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" id="subtitleColor" title="Subtitle color" value="#ffffff" class="form-control form-control-color" style="width:48px; padding:2px;">
+                    <input type="range" id="subtitleSize" min="12" max="48" value="18" class="form-range" style="width:120px;">
+                    <div id="subtitleSizeVal" style="min-width:42px; text-align:center;">18px</div>
+                </div>
             </div>
         </div>
 
@@ -66,7 +95,12 @@
                         <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
-                <video id="videoPlayer" class="w-100" controls></video>
+                <div id="playerContainer" class="position-relative w-100">
+                    <video id="videoPlayer" class="w-100" controls style="display:block"></video>
+                    <!-- Subtitle overlay for iframe players or custom rendering -->
+                    <div id="subtitleOverlay" style="position:absolute; left:0; right:0; bottom:8%; text-align:center; pointer-events:none; color:white; text-shadow:0 0 6px black; font-size:18px;
+                        padding:0 10px; display:none; white-space:pre-line;"></div>
+                </div>
             </div>
         </div>
 
@@ -103,11 +137,186 @@
         const translatedSubtitlesEl = document.getElementById('translatedSubtitles');
         const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
         const downloadTranslatedBtn = document.getElementById('downloadTranslatedBtn');
+    const subtitleModeSelect = document.getElementById('subtitleModeSelect');
 
         let originalVttContent = '';
         let translatedVttContent = '';
         let uploadedVideoPath = '';
         let translationPairs = []; // To store the fetched translation pairs
+    let isYouTube = false;
+    let ytPlayer = null;
+    let overlayTimer = null;
+    let _pendingYtId = null;
+
+        // Helpers to parse and build VTT
+        function parseVttCues(vtt) {
+            if (!vtt) return [];
+            const lines = vtt.split(/\r?\n/);
+            const cues = [];
+            let i = 0;
+            // skip WEBVTT header if present
+            if (lines[i] && lines[i].startsWith('WEBVTT')) i++;
+            while (i < lines.length) {
+                // skip empty lines
+                while (i < lines.length && lines[i].trim() === '') i++;
+                if (i >= lines.length) break;
+                // optional cue id
+                let idLine = null;
+                if (lines[i] && !lines[i].includes('-->')) {
+                    idLine = lines[i].trim();
+                    i++;
+                }
+                if (i >= lines.length) break;
+                const timeLine = lines[i] || '';
+                const timeMatch = timeLine.match(/([0-9:.]+)\s*-->\s*([0-9:.]+)/);
+                if (!timeMatch) { i++; continue; }
+                const start = timeMatch[1];
+                const end = timeMatch[2];
+                i++;
+                let textLines = [];
+                while (i < lines.length && lines[i].trim() !== '') {
+                    textLines.push(lines[i]);
+                    i++;
+                }
+                cues.push({start, end, text: textLines.join('\n')});
+            }
+            return cues;
+        }
+
+        function buildVttFromCues(cues) {
+            let out = 'WEBVTT\n\n';
+            cues.forEach((c, idx) => {
+                out += `${idx+1}\n${c.start} --> ${c.end}\n${c.text}\n\n`;
+            });
+            return out;
+        }
+
+        function buildBilingualVtt(original, translated) {
+            const cuesA = parseVttCues(original);
+            const cuesB = parseVttCues(translated);
+            const maxLen = Math.max(cuesA.length, cuesB.length);
+            const merged = [];
+            for (let i = 0; i < maxLen; i++) {
+                const a = cuesA[i] || {start: (cuesB[i]||{}).start || '00:00:00.000', end: (cuesB[i]||{}).end || '00:00:00.001', text: ''};
+                const b = cuesB[i] || {text: ''};
+                const text = [a.text, b.text].filter(Boolean).join('\n');
+                merged.push({start: a.start, end: a.end, text});
+            }
+            return buildVttFromCues(merged);
+        }
+
+        function updateVideoTracks() {
+            // Remove existing custom tracks
+            const oldTracks = videoPlayer.querySelectorAll('track[data-generated]');
+            oldTracks.forEach(t => t.remove());
+
+            const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
+            // If using iframe (YouTube), show overlay instead of native track
+            const subtitleOverlay = document.getElementById('subtitleOverlay');
+            if (isYouTube) {
+                subtitleOverlay.style.display = 'block';
+                startOverlaySync();
+            } else {
+                subtitleOverlay.style.display = 'none';
+                stopOverlaySync();
+            }
+            if (mode === 'original' && originalVttContent) {
+                if (!isYouTube) {
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Original';
+                    track.srclang = 'en';
+                    track.src = URL.createObjectURL(new Blob([originalVttContent], {type: 'text/vtt'}));
+                    track.setAttribute('data-generated', '1');
+                    track.default = true;
+                    videoPlayer.appendChild(track);
+                }
+            } else if (mode === 'translated' && translatedVttContent) {
+                if (!isYouTube) {
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Translated';
+                    track.srclang = 'zh';
+                    track.src = URL.createObjectURL(new Blob([translatedVttContent], {type: 'text/vtt'}));
+                    track.setAttribute('data-generated', '1');
+                    track.default = true;
+                    videoPlayer.appendChild(track);
+                }
+            } else if (mode === 'bilingual' && originalVttContent && translatedVttContent) {
+                const merged = buildBilingualVtt(originalVttContent, translatedVttContent);
+                if (!isYouTube) {
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Bilingual';
+                    track.srclang = 'zh-en';
+                    track.src = URL.createObjectURL(new Blob([merged], {type: 'text/vtt'}));
+                    track.setAttribute('data-generated', '1');
+                    track.default = true;
+                    videoPlayer.appendChild(track);
+                }
+                // if YouTube, ensure overlay is enabled - overlay rendering happens in sync loop
+            }
+        }
+
+        if (subtitleModeSelect) {
+            subtitleModeSelect.addEventListener('change', updateVideoTracks);
+        }
+
+        function getCurrentTimeSeconds() {
+            // If we have a YT player instance, use its currentTime (more accurate)
+            try {
+                if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                    return ytPlayer.getCurrentTime() || 0;
+                }
+            } catch (e) {
+                // fallback
+            }
+            return videoPlayer.currentTime || 0;
+        }
+
+        function renderOverlayForTime(t) {
+            const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
+            const cues = parseVttCues(mode === 'original' ? originalVttContent : (mode === 'translated' ? translatedVttContent : buildBilingualVtt(originalVttContent, translatedVttContent)));
+            if (!cues || cues.length === 0) {
+                document.getElementById('subtitleOverlay').innerText = '';
+                return;
+            }
+            // find cue where start<=t<end
+            for (let i=0;i<cues.length;i++){
+                const s = parseTimeToSeconds(cues[i].start);
+                const e = parseTimeToSeconds(cues[i].end);
+                if (t >= s && t <= e) {
+                    document.getElementById('subtitleOverlay').innerText = cues[i].text;
+                    return;
+                }
+            }
+            document.getElementById('subtitleOverlay').innerText = '';
+        }
+
+        function parseTimeToSeconds(ts) {
+            // ts format HH:MM:SS.mmm or MM:SS.mmm
+            if (!ts) return 0;
+            const parts = ts.split(':').map(Number);
+            if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+            if (parts.length === 2) return parts[0]*60 + parts[1];
+            return Number(ts) || 0;
+        }
+
+        function startOverlaySync() {
+            stopOverlaySync();
+            overlayTimer = setInterval(() => {
+                const t = getCurrentTimeSeconds();
+                renderOverlayForTime(t);
+            }, 200);
+        }
+
+        function stopOverlaySync() {
+            if (overlayTimer) {
+                clearInterval(overlayTimer);
+                overlayTimer = null;
+            }
+            document.getElementById('subtitleOverlay').innerText = '';
+        }
 
         // Fetch initial data on page load
         window.onload = async () => {
@@ -132,6 +341,171 @@
                 updateStatus('Error loading initial data. Please reload.', true);
                 console.error('Initialization error:', error);
             }
+                    // Wire fetch button after initialization (start background fetch and poll status)
+            const fetchBtn = document.getElementById('fetchBtn');
+            const videoUrlInput = document.getElementById('videoUrlInput');
+            fetchBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const url = videoUrlInput.value.trim();
+                if (!url) return alert('Please enter a URL to fetch');
+
+                // Always use server-side fetch to download a playable local file (prefer 720p) and then play with native video element
+
+                // Otherwise perform the normal fetch/download flow
+                fetchBtn.disabled = true;
+                updateStatus('Starting fetch...');
+                try {
+                    const resp = await fetch('/fetch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    const data = await resp.json();
+                    if (data.error) throw new Error(data.error || 'Fetch failed');
+                    const videoId = data.video_id;
+                    updateStatus('Downloading video...');
+
+                    // Poll status
+                    const poll = setInterval(async () => {
+                        try {
+                            const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
+                            const sinfo = await sresp.json();
+                                if (sinfo.status === 'Downloading...') {
+                                updateStatus('Downloading video...');
+                            } else if (sinfo.status === 'Ready') {
+                                clearInterval(poll);
+                                fetchBtn.disabled = false;
+                                let returnedPath = sinfo.path;
+                                // If the returned path is a subtitle file, try to pick a matching video/audio file
+                                const lower = returnedPath ? returnedPath.toLowerCase() : '';
+                                const isSubtitle = lower.endsWith('.vtt') || lower.endsWith('.srt') || lower.endsWith('.ass') || lower.endsWith('.sub');
+                                if (isSubtitle) {
+                                    const base = returnedPath.replace(/\.[^.]+$/, '');
+                                    const preferred = ['.mp4', '.mkv', '.webm', '.mov', '.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg', '.opus'];
+                                    let found = null;
+                                    for (const ext of preferred) {
+                                        const candidate = base + ext;
+                                        try {
+                                            const head = await fetch(candidate, { method: 'HEAD' });
+                                            if (head && head.ok) { found = candidate; break; }
+                                        } catch (e) {
+                                            // ignore
+                                        }
+                                    }
+                                    if (found) {
+                                        returnedPath = found;
+                                    } else {
+                                        updateStatus('Fetched only a subtitle file; original video not found locally. You can upload the video or try fetching again.', true);
+                                    }
+                                }
+
+                                uploadedVideoPath = returnedPath;
+                                // ensure native player is visible and any iframe removed
+                                const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
+                                if (existingIframe) existingIframe.remove();
+                                isYouTube = false;
+                                videoPlayer.style.display = 'block';
+                                videoPlayer.src = uploadedVideoPath;
+                                const selectedVideoName = document.getElementById('selectedVideoName');
+                                selectedVideoName.value = uploadedVideoPath ? uploadedVideoPath.split('/').pop() : '';
+                                updateStatus('Fetch complete. Ready to extract subtitles.');
+                            } else if (sinfo.status === 'Error') {
+                                clearInterval(poll);
+                                fetchBtn.disabled = false;
+                                updateStatus(`Fetch error: ${sinfo.error}`, true);
+                            } else {
+                                // unknown status string
+                                updateStatus(`Status: ${sinfo.status}`);
+                            }
+                        } catch (err) {
+                            clearInterval(poll);
+                            fetchBtn.disabled = false;
+                            updateStatus(`Error checking fetch status: ${err.message}`, true);
+                        }
+                    }, 2000);
+
+                } catch (err) {
+                    fetchBtn.disabled = false;
+                    updateStatus(`Error: ${err.message}`, true);
+                }
+            });
+
+            // Preview button: load YouTube IFrame API and create an embedded player for overlay preview
+            const previewBtnEl = document.getElementById('previewBtn');
+            // Simple promise wrapper so we only load the API once
+            const youtubeApiPromise = (function(){
+                let p = null;
+                return function() {
+                    if (p) return p;
+                    p = new Promise((resolve, reject) => {
+                        try {
+                            if (window.YT && window.YT.Player) return resolve(window.YT);
+                            const tag = document.createElement('script');
+                            tag.src = 'https://www.youtube.com/iframe_api';
+                            document.head.appendChild(tag);
+                            window.onYouTubeIframeAPIReady = function() { resolve(window.YT); };
+                            // Timeout in case API fails
+                            setTimeout(() => { if (!window.YT) reject(new Error('YouTube API load timeout')); }, 10000);
+                        } catch (e) { reject(e); }
+                    });
+                    return p;
+                };
+            })();
+
+            function getYouTubeIdFromUrl(url) {
+                try {
+                    const u = new URL(url);
+                    if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v');
+                    if (u.hostname === 'youtu.be') return u.pathname.slice(1);
+                } catch (e) { /* ignore */ }
+                return null;
+            }
+
+            previewBtnEl.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                const url = (document.getElementById('videoUrlInput') || {}).value || '';
+                if (!url) return alert('Please enter a YouTube URL to preview');
+                const vid = getYouTubeIdFromUrl(url.trim());
+                if (!vid) return alert('Not a valid YouTube URL');
+                try {
+                    const YT = await youtubeApiPromise();
+                    // Clean up any existing YT player or iframe
+                    try { if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy(); } catch (e) { }
+                    const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
+                    if (existingIframe) existingIframe.remove();
+                    // Hide native video element
+                    videoPlayer.style.display = 'none';
+                    isYouTube = true;
+                    // Insert container for YT player
+                    const container = document.getElementById('playerContainer');
+                    const div = document.createElement('div');
+                    div.id = 'youtubeIframe';
+                    div.style.width = '100%';
+                    div.style.height = '480px';
+                    container.appendChild(div);
+
+                    // Create YT player
+                    ytPlayer = new YT.Player('youtubeIframe', {
+                        height: '480',
+                        width: '100%',
+                        videoId: vid,
+                        playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
+                        events: {
+                            onReady: (e) => {
+                                // Start overlay sync (user can press play in the embedded player)
+                                document.getElementById('subtitleOverlay').style.display = 'block';
+                                startOverlaySync();
+                            },
+                            onStateChange: (e) => {
+                                // keep overlay in sync; nothing else required here
+                            }
+                        }
+                    });
+                } catch (err) {
+                    console.error('YouTube preview error', err);
+                    alert('YouTube preview failed: ' + (err && err.message ? err.message : err));
+                }
+            });
         };
 
         function updateTargetLanguages() {
@@ -153,48 +527,132 @@
 
         async function startProcess() {
             const file = videoFileInput.files[0];
-            if (!file) {
-                alert('Please select a video file first.');
+            // Allow using a previously fetched/uploaded video if no file is selected
+            if (!file && !uploadedVideoPath) {
+                alert('Please select a video file first or fetch a video.');
                 return;
             }
 
             updateStatus('Starting process...');
 
             try {
-                // 1. Upload video
-                updateStatus('Uploading video...');
-                const formData = new FormData();
-                formData.append('file', file);
+                // 1. Upload video only if a local file was chosen
+                if (file) {
+                    updateStatus('Uploading video...');
+                    const formData = new FormData();
+                    formData.append('file', file);
 
-                const uploadResponse = await fetch('/upload', { method: 'POST', body: formData });
-                const uploadData = await uploadResponse.json();
-                if (uploadData.error) throw new Error(uploadData.error);
+                    const uploadResponse = await fetch('/upload', { method: 'POST', body: formData });
+                    const uploadData = await uploadResponse.json();
+                    if (uploadData.error) throw new Error(uploadData.error);
 
-                uploadedVideoPath = uploadData.video_path;
-                videoPlayer.src = uploadedVideoPath;
+                    uploadedVideoPath = uploadData.video_path;
+                    // If a YouTube link was provided via fetch flow, uploadedVideoPath is local path; keep native
+                    isYouTube = false;
+                    videoPlayer.style.display = 'block';
+                    videoPlayer.src = uploadedVideoPath;
+                } else {
+                    // Use the already-fetched video on the server
+                    updateStatus('Using fetched video...');
+                    // If the fetched path is an actual remote URL (YouTube), request server to download it first
+                    const url = uploadedVideoPath;
+                    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+                        updateStatus('Requesting server to download YouTube video (for transcription)...');
+                        const fetchResp = await fetch('/fetch', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });
+                        const fetchData = await fetchResp.json();
+                        if (fetchResp.status !== 202) throw new Error(fetchData.error || 'Could not start server-side fetch');
+                        const videoId = fetchData.video_id;
+                        // poll server for fetch status
+                        let serverPath = null;
+                        updateStatus('Server downloading video...');
+                        while (true) {
+                            await new Promise(r => setTimeout(r, 1500));
+                            const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
+                            const sinfo = await sresp.json();
+                            if (sinfo.status === 'Ready') { serverPath = sinfo.path; break; }
+                            if (sinfo.status === 'Error') throw new Error(sinfo.error || 'Server fetch failed');
+                        }
+                        if (!serverPath) throw new Error('Could not obtain downloaded video path from server');
+                        uploadedVideoPath = serverPath;
+                        isYouTube = false;
+                        videoPlayer.style.display = 'block';
+                        videoPlayer.src = uploadedVideoPath;
+                    } else {
+                        isYouTube = false;
+                        videoPlayer.style.display = 'block';
+                        videoPlayer.src = uploadedVideoPath;
+                    }
+                }
 
-                // 2. Extract subtitles
-                updateStatus('Extracting subtitles (this may take a while)...');
+                // 2. Start async extraction job (server will slice & transcribe)
+                updateStatus('Starting transcription job...');
                 const model = modelSelect.value;
-                const extractUrl = `/extract_subtitles?video_path=${encodeURIComponent(uploadedVideoPath)}&model=${model}`;
-                const extractResponse = await fetch(extractUrl);
-                const extractData = await extractResponse.json();
-                if (extractData.error) throw new Error(extractData.error);
+                const useFaster = document.getElementById('useFasterCheck').checked;
+                // map source language label to language code for transcription
+                const selectedSourceLang = sourceLangSelect.value;
+                const langCodeMap = { 'English': 'en', 'Chinese': 'zh' };
+                const transcribeLangCode = langCodeMap[selectedSourceLang] || null;
+                const startResp = await fetch('/extract_async', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ video_path: uploadedVideoPath, model: model, segment_time: 300, use_faster: useFaster, language: transcribeLangCode })
+                });
+                const startData = await startResp.json();
+                if (startResp.status !== 202) throw new Error(startData.error || 'Could not start extraction job');
+                const jobId = startData.job_id;
 
-                originalVttContent = extractData.vtt_content;
-                originalSubtitlesEl.innerText = originalVttContent;
+                // Poll job status
+                updateStatus('Transcribing (this may take a while)...');
+                const jobPoll = setInterval(async () => {
+                    try {
+                        const sresp = await fetch(`/extract/status?job_id=${encodeURIComponent(jobId)}`);
+                        const sdata = await sresp.json();
+                        if (sdata.state === 'running' || sdata.state === 'queued') {
+                            updateStatus(`${sdata.message} (${sdata.percent || 0}%)`);
+                                if (sdata.vtt_partial) {
+                                originalVttContent = 'WEBVTT\n\n' + sdata.vtt_partial;
+                                originalSubtitlesEl.innerText = originalVttContent;
+                                // update video tracks according to selected mode
+                                updateVideoTracks();
+                            }
+                        } else if (sdata.state === 'done') {
+                            clearInterval(jobPoll);
+                            originalVttContent = sdata.vtt_content;
+                            originalSubtitlesEl.innerText = originalVttContent;
+                            // update video tracks according to selected mode
+                            updateVideoTracks();
 
-                // Add subtitles track to video
-                const trackUrl = URL.createObjectURL(new Blob([originalVttContent], {type: 'text/vtt'}));
-                const oldTrack = videoPlayer.querySelector('track');
-                if(oldTrack) oldTrack.remove();
-                const track = document.createElement('track');
-                track.kind = 'subtitles';
-                track.label = 'English';
-                track.srclang = 'en';
-                track.src = trackUrl;
-                track.default = true;
-                videoPlayer.appendChild(track);
+                            updateStatus('Transcription complete. Translating...');
+                            // Proceed to translation as before
+                            const sourceLang = sourceLangSelect.value;
+                            const targetLang = targetLangSelect.value;
+                            const translateResponse = await fetch('/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    vtt_content: originalVttContent,
+                                    source_lang: sourceLang,
+                                    target_lang: targetLang,
+                                    video_path: uploadedVideoPath
+                                })
+                            });
+                            const translateData = await translateResponse.json();
+                            if (translateData.error) throw new Error(translateData.error);
+                            translatedVttContent = translateData.translated_vtt_content;
+                            translatedSubtitlesEl.innerText = translatedVttContent;
+                            updateStatus('Process complete!', false);
+                        } else if (sdata.state === 'error') {
+                            clearInterval(jobPoll);
+                            throw new Error(sdata.message || 'Extraction error');
+                        }
+                    } catch (err) {
+                        clearInterval(jobPoll);
+                        updateStatus(`Error during transcription: ${err.message}`, true);
+                    }
+                }, 3000);
+
+                // update video tracks according to selected mode
+                updateVideoTracks();
 
 
                 // 3. Translate subtitles
@@ -251,11 +709,38 @@
             downloadVTT(filename, translatedSubtitlesEl.innerText);
         });
 
-        // --- Model Management ---
-        const modelManagementModal = document.getElementById('modelManagementModal');
-        const whisperModelList = document.getElementById('whisperModelList');
-        const translationModelList = document.getElementById('translationModelList');
-        let statusInterval;
+        // Subtitle style controls: color and font size
+        const subtitleColorEl = document.getElementById('subtitleColor');
+        const subtitleSizeEl = document.getElementById('subtitleSize');
+        const subtitleSizeValEl = document.getElementById('subtitleSizeVal');
+
+        function applySubtitleStyles() {
+            const color = subtitleColorEl.value || '#ffffff';
+            const size = (subtitleSizeEl.value || '18') + 'px';
+            // Apply to overlay
+            const overlay = document.getElementById('subtitleOverlay');
+            overlay.style.color = color;
+            overlay.style.fontSize = size;
+            // Update displayed size
+            subtitleSizeValEl.innerText = size;
+            // Inject ::cue style for native video tracks
+            let cueStyle = document.getElementById('generatedCueStyle');
+            if (!cueStyle) {
+                cueStyle = document.createElement('style');
+                cueStyle.id = 'generatedCueStyle';
+                document.head.appendChild(cueStyle);
+            }
+            cueStyle.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 0 6px black !important; }`;
+        }
+
+        subtitleColorEl.addEventListener('input', applySubtitleStyles);
+        subtitleSizeEl.addEventListener('input', applySubtitleStyles);
+
+        // Initialize styles on load
+        applySubtitleStyles();
+
+    // --- Model Management ---
+    let statusInterval;
 
         async function populateModelStatus() {
             // 1. Set loading state immediately
@@ -270,23 +755,25 @@
                 }
                 const statuses = await response.json();
 
-                // Populate Whisper models
-                whisperModelList.innerHTML = '';
-                if (Object.keys(statuses.whisper).length === 0) {
-                    whisperModelList.innerHTML = '<li class="list-group-item text-muted"><em>No models found.</em></li>';
-                } else {
-                    for (const [model, status] of Object.entries(statuses.whisper)) {
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        li.innerHTML = `
-                            <span>${model}</span>
-                            ${createStatusBadge(status, 'whisper', model)}
-                        `;
-                        whisperModelList.appendChild(li);
+                    // Populate Whisper models
+                    const whisperModelList = document.getElementById('whisperModelList');
+                    whisperModelList.innerHTML = '';
+                    if (Object.keys(statuses.whisper).length === 0) {
+                        whisperModelList.innerHTML = '<li class="list-group-item text-muted"><em>No models found.</em></li>';
+                    } else {
+                        for (const [model, status] of Object.entries(statuses.whisper)) {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                            li.innerHTML = `
+                                <span>${model}</span>
+                                ${createStatusBadge(status, 'whisper', model)}
+                            `;
+                            whisperModelList.appendChild(li);
+                        }
                     }
-                }
 
                 // Populate Translation models
+                const translationModelList = document.getElementById('translationModelList');
                 translationModelList.innerHTML = '';
                 if (translationPairs.length === 0) {
                     translationModelList.innerHTML = '<li class="list-group-item text-muted"><em>No translation models found.</em></li>';
@@ -315,9 +802,10 @@
             }
         }
 
+
         function createStatusBadge(status, modelType, modelKey) {
             if (status === 'Ready') {
-                return `<span class="badge bg-success">Ready</span>`;
+                return `<span class="badge bg-success me-2">Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}">Delete</button>`;
             }
             if (status === 'Downloading...') {
                 return `<span class="badge bg-warning">Downloading...</span>`;
@@ -325,43 +813,58 @@
             return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}">Download</button>`;
         }
 
-        async function handleDownloadClick(e) {
-            if (!e.target.classList.contains('download-btn')) return;
-
-            const btn = e.target;
-            const modelType = btn.dataset.type;
-            const modelKey = btn.dataset.key;
-
-            btn.disabled = true;
-            btn.outerHTML = createStatusBadge('Downloading...');
-
-            try {
-                await fetch('/models/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model_type: modelType, model_key: modelKey })
-                });
-
-                // Start polling for status updates
-                if (!statusInterval) {
-                    statusInterval = setInterval(async () => {
-                        await populateModelStatus();
-                        // Optional: Check if all downloads are complete and clear interval
-                    }, 5000); // Poll every 5 seconds
+        async function handleModelManagementClick(e) {
+            if (e.target.classList.contains('download-btn')) {
+                const btn = e.target;
+                const modelType = btn.dataset.type;
+                const modelKey = btn.dataset.key;
+                btn.disabled = true;
+                btn.outerHTML = createStatusBadge('Downloading...', modelType, modelKey);
+                try {
+                    await fetch('/models/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
+                    });
+                    if (!statusInterval) {
+                        statusInterval = setInterval(async () => {
+                            await populateModelStatus();
+                        }, 5000);
+                    }
+                } catch (error) {
+                    populateModelStatus();
                 }
-            } catch (error) {
-                console.error("Download trigger failed:", error);
-                // Re-enable button on error
-                populateModelStatus();
+            }
+            if (e.target.classList.contains('delete-btn')) {
+                const btn = e.target;
+                const modelType = btn.dataset.type;
+                const modelKey = btn.dataset.key;
+                btn.disabled = true;
+                btn.outerHTML = '<span class="badge bg-secondary">Deleting...</span>';
+                try {
+                    await fetch('/models/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
+                    });
+                    await populateModelStatus();
+                } catch (error) {
+                    populateModelStatus();
+                }
             }
         }
 
-        modelManagementModal.addEventListener('show.bs.modal', populateModelStatus);
-        modelManagementModal.addEventListener('hide.bs.modal', () => {
-            if (statusInterval) clearInterval(statusInterval);
-            statusInterval = null;
+        // Attach modal event listeners after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelManagementModal = document.getElementById('modelManagementModal');
+            if (!modelManagementModal) return;
+            modelManagementModal.addEventListener('show.bs.modal', populateModelStatus);
+            modelManagementModal.addEventListener('hide.bs.modal', () => {
+                if (statusInterval) clearInterval(statusInterval);
+                statusInterval = null;
+            });
+            modelManagementModal.addEventListener('click', handleModelManagementClick);
         });
-        modelManagementModal.addEventListener('click', handleDownloadClick);
 
 
     </script>

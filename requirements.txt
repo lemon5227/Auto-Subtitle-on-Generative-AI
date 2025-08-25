@@ -4,3 +4,4 @@ torch
 transformers
 sentencepiece
 huggingface-hub
+yt-dlp
