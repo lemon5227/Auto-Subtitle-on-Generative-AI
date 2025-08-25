@@ -3,3 +3,4 @@ openai-whisper
 torch
 transformers
 sentencepiece
+huggingface-hub

@@ -43,11 +43,15 @@
                 <label for="modelSelect" class="form-label">2. Choose Model</label>
                 <select class="form-select" id="modelSelect"></select>
             </div>
-            <div class="col-md-3">
-                <label for="languageSelect" class="form-label">3. Select Language (for translation)</label>
-                <select class="form-select" id="languageSelect"></select>
+            <div class="col-md-2">
+                <label for="sourceLangSelect" class="form-label">3. Translate From</label>
+                <select class="form-select" id="sourceLangSelect"></select>
             </div>
-            <div class="col-md-2 d-grid">
+            <div class="col-md-2">
+                <label for="targetLangSelect" class="form-label">4. Translate To</label>
+                <select class="form-select" id="targetLangSelect"></select>
+            </div>
+            <div class="col-md-2 d-grid align-self-end">
                 <button class="btn btn-primary" id="generateBtn" onclick="startProcess()">Generate</button>
             </div>
         </div>
@@ -89,7 +93,8 @@
         // DOM Elements
         const videoFileInput = document.getElementById('videoFile');
         const modelSelect = document.getElementById('modelSelect');
-        const languageSelect = document.getElementById('languageSelect');
+        const sourceLangSelect = document.getElementById('sourceLangSelect');
+        const targetLangSelect = document.getElementById('targetLangSelect');
         const generateBtn = document.getElementById('generateBtn');
         const statusEl = document.getElementById('status');
         const spinner = document.getElementById('spinner');
@@ -102,30 +107,42 @@
         let originalVttContent = '';
         let translatedVttContent = '';
         let uploadedVideoPath = '';
+        let translationPairs = []; // To store the fetched translation pairs
 
-        // Fetch models and languages on page load
+        // Fetch initial data on page load
         window.onload = async () => {
             try {
-                // Fetch models
+                // Fetch whisper models
                 const modelsResponse = await fetch('/models');
                 const models = await modelsResponse.json();
-                models.forEach(model => {
-                    const option = new Option(model, model);
-                    modelSelect.add(option);
-                });
+                models.forEach(model => modelSelect.add(new Option(model, model)));
 
-                // Fetch languages
-                const languagesResponse = await fetch('/languages');
-                const languages = await languagesResponse.json();
-                languages.forEach(lang => {
-                    const option = new Option(lang, lang);
-                    languageSelect.add(option);
-                });
+                // Fetch translation pairs
+                const pairsResponse = await fetch('/translation_pairs');
+                translationPairs = await pairsResponse.json();
+
+                // Populate source language dropdown
+                const sourceLanguages = [...new Set(translationPairs.map(p => p.source))];
+                sourceLanguages.forEach(lang => sourceLangSelect.add(new Option(lang, lang)));
+
+                // Trigger change to populate target dropdown initially
+                updateTargetLanguages();
+
             } catch (error) {
                 updateStatus('Error loading initial data. Please reload.', true);
                 console.error('Initialization error:', error);
             }
         };
+
+        function updateTargetLanguages() {
+            const selectedSource = sourceLangSelect.value;
+            targetLangSelect.innerHTML = ''; // Clear existing options
+            translationPairs
+                .filter(p => p.source === selectedSource)
+                .forEach(p => targetLangSelect.add(new Option(p.target, p.target)));
+        }
+
+        sourceLangSelect.addEventListener('change', updateTargetLanguages);
 
         function updateStatus(message, isError = false) {
             statusEl.textContent = message;
@@ -182,12 +199,14 @@
 
                 // 3. Translate subtitles
                 updateStatus('Translating subtitles...');
-                const targetLang = languageSelect.value;
+                const sourceLang = sourceLangSelect.value;
+                const targetLang = targetLangSelect.value;
                 const translateResponse = await fetch('/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         vtt_content: originalVttContent,
+                        source_lang: sourceLang,
                         target_lang: targetLang,
                         video_path: uploadedVideoPath
                     })
@@ -224,8 +243,11 @@
         });
 
         downloadTranslatedBtn.addEventListener('click', () => {
-            const lang = languageSelect.value;
-            const filename = uploadedVideoPath ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${lang}.vtt` : `translated_${lang}.vtt`;
+            const sourceLang = sourceLangSelect.value;
+            const targetLang = targetLangSelect.value;
+            const filename = uploadedVideoPath
+                ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${sourceLang}_to_${targetLang}.vtt`
+                : `translated_${sourceLang}_to_${targetLang}.vtt`;
             downloadVTT(filename, translatedSubtitlesEl.innerText);
         });
 
@@ -254,12 +276,17 @@
 
                 // Populate Translation models
                 translationModelList.innerHTML = '';
-                for (const [lang, status] of Object.entries(statuses.translation)) {
-                     const li = document.createElement('li');
+                // We need the translationPairs list from the onload function
+                for (const pair of translationPairs) {
+                    const status = statuses.translation[pair.model] || 'Not Found';
+                    const li = document.createElement('li');
                     li.className = 'list-group-item d-flex justify-content-between align-items-center';
                     li.innerHTML = `
-                        <span>${lang}</span>
-                        ${createStatusBadge(status, 'translation', lang)}
+                        <span class="d-flex flex-column">
+                            <span>${pair.source} &rarr; ${pair.target}</span>
+                            <small class="text-muted">${pair.model}</small>
+                        </span>
+                        ${createStatusBadge(status, 'translation', pair.model)}
                     `;
                     translationModelList.appendChild(li);
                 }
