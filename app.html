@@ -7,53 +7,69 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Improved typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root{
-            --bg:#f4f7fb;
-            --card:#ffffff;
-            --primary:#2F88FF;
-            --muted:#6c757d;
-            --accent:#1f6feb;
-            --success:#28a745;
-            --danger:#dc3545;
-            --shadow: 0 6px 18px rgba(31,40,60,0.08);
-            --overlay-bg: rgba(0,0,0,0.6);
-        }
-        body {
-            background-color: var(--bg);
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-            color: #0f1724;
-        }
-        .container {
-            max-width: 1200px;
-        }
-        .subtitle-editor {
-            height: 360px;
-            overflow-y: auto;
-            border-radius: 8px;
-            border: 1px solid rgba(15,23,36,0.08);
-            padding: 12px;
-            background-color: var(--card);
-            box-shadow: var(--shadow);
-        }
-        #status {
-            font-weight: bold;
-        }
-        /* Card-like controls */
-        .controls-card{ background:var(--card); padding:16px; border-radius:10px; box-shadow:var(--shadow); }
-        .btn-primary{ background:var(--primary); border-color:var(--primary); }
-        .btn-primary:hover{ background:var(--accent); border-color:var(--accent); }
-        .btn-outline-secondary{ border-radius:8px; }
-        .input-group .form-control{ border-radius:8px; }
-        /* player styling */
-        #playerContainer{ background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(255,255,255,0.02)); padding:12px; border-radius:10px; box-shadow:var(--shadow); }
-        #videoPlayer{ border-radius:8px; background:#000; max-height:520px; }
-        /* subtitle overlay improved readability */
-        #subtitleOverlay{ display:none; pointer-events:none; color:var(--card); text-shadow:0 2px 6px rgba(0,0,0,0.6); font-weight:600; font-size:18px; line-height:1.3; max-width:90%; margin:0 auto; background:var(--overlay-bg); padding:8px 14px; border-radius:6px;}
-        /* small svg icon alignment helper */
-        .icon-inline{ vertical-align:middle; margin-right:6px; }
-        /* model management modal tweaks */
-        .modal-body .list-group-item{ display:flex; justify-content:space-between; align-items:center; }
+    <!-- Tailwind Play CDN - enables Tailwind utility classes without a build step -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind theme extension for design tokens (primary, accent, etc.)
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2F88FF',
+                        accent: '#2FD6A4',
+                        <body class="bg-bg font-sans text-slate-800">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <main class="lg:col-span-2">
+                                    <h1 class="text-2xl font-semibold mb-4">Auto Subtitle on Generative AI</h1>
+                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4 mb-6">
+                                        <h2 class="text-lg font-medium mb-2">Video Player & Preview</h2>
+                                        <video id="videoPlayer" class="w-full rounded-md bg-black" controls crossorigin playsinline>
+                                            <source id="videoSource" src="" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                        <div id="subtitleOverlay" class="mt-3 p-3 rounded-md bg-gray-50 border border-gray-200" style="min-height:48px"></div>
+                                    </section>
+                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4">
+                                        <h2 class="text-lg font-medium mb-2">Subtitle Editor</h2>
+                                        <textarea id="originalSubtitles" class="w-full p-2 border rounded-md" rows="6"></textarea>
+                                        <textarea id="translatedSubtitles" class="w-full p-2 border rounded-md mt-3" rows="6"></textarea>
+                                    </section>
+                                </main>
+                                <aside class="lg:col-span-1">
+                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4 mb-6">
+                                        <h2 class="text-lg font-medium mb-3">Controls</h2>
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium mb-1">Video File</label>
+                                            <input id="videoFile" type="file" class="w-full text-sm" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium mb-1">Video URL (YouTube)</label>
+                                            <input id="videoUrlInput" type="text" class="w-full p-2 border rounded-md" placeholder="https://www.youtube.com/watch?v=..." />
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button id="fetchBtn" class="flex-1 bg-primary text-white py-2 px-3 rounded-md">Fetch</button>
+                                            <button id="previewBtn" class="flex-1 border border-gray-300 text-sm py-2 px-3 rounded-md">Preview</button>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button id="generateBtn" class="w-full bg-accent text-white py-2 px-3 rounded-md">Generate Subtitles</button>
+                                        </div>
+                                    </section>
+                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4">
+                                        <h2 class="text-lg font-medium mb-3">Subtitle Style</h2>
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium mb-1">Color</label>
+                                            <input id="subtitleColor" type="color" class="h-10 w-16 p-1 border rounded-md" value="#FFFFFF">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium mb-1">Size</label>
+                                            <input id="subtitleSize" type="range" min="12" max="48" value="24" class="w-full">
+                                        </div>
+                                    </section>
+                                </aside>
+                            </div>
+                        </div>
+                        </body>
         .subtitle-editor[contenteditable]{ min-height: 350px; }
         /* responsive tweaks */
         @media (max-width: 768px){
