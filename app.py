@@ -27,8 +27,12 @@ translation_pipelines = {}
 # --- Model Status & Management ---
 def get_whisper_model_status(model_name):
     """Checks if a Whisper model is cached locally."""
-    cache_path = os.path.expanduser(f"~/.cache/whisper/{model_name}.pt")
-    return "Ready" if os.path.exists(cache_path) else "Not Downloaded"
+    try:
+        cache_path = os.path.expanduser(f"~/.cache/whisper/{model_name}.pt")
+        return "Ready" if os.path.exists(cache_path) else "Not Downloaded"
+    except Exception as e:
+        print(f"Could not determine status for Whisper model {model_name}: {e}")
+        return "Not Downloaded"
 
 def get_hf_model_status(model_name):
     """Checks if a Hugging Face model is cached locally."""

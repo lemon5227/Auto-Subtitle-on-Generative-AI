@@ -258,41 +258,60 @@
         let statusInterval;
 
         async function populateModelStatus() {
+            // 1. Set loading state immediately
+            const loadingHTML = '<li class="list-group-item text-muted"><em>Loading...</em></li>';
+            whisperModelList.innerHTML = loadingHTML;
+            translationModelList.innerHTML = loadingHTML;
+
             try {
                 const response = await fetch('/models/status');
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
                 const statuses = await response.json();
 
                 // Populate Whisper models
                 whisperModelList.innerHTML = '';
-                for (const [model, status] of Object.entries(statuses.whisper)) {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    li.innerHTML = `
-                        <span>${model}</span>
-                        ${createStatusBadge(status, 'whisper', model)}
-                    `;
-                    whisperModelList.appendChild(li);
+                if (Object.keys(statuses.whisper).length === 0) {
+                    whisperModelList.innerHTML = '<li class="list-group-item text-muted"><em>No models found.</em></li>';
+                } else {
+                    for (const [model, status] of Object.entries(statuses.whisper)) {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        li.innerHTML = `
+                            <span>${model}</span>
+                            ${createStatusBadge(status, 'whisper', model)}
+                        `;
+                        whisperModelList.appendChild(li);
+                    }
                 }
 
                 // Populate Translation models
                 translationModelList.innerHTML = '';
-                // We need the translationPairs list from the onload function
-                for (const pair of translationPairs) {
-                    const status = statuses.translation[pair.model] || 'Not Found';
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    li.innerHTML = `
-                        <span class="d-flex flex-column">
-                            <span>${pair.source} &rarr; ${pair.target}</span>
-                            <small class="text-muted">${pair.model}</small>
-                        </span>
-                        ${createStatusBadge(status, 'translation', pair.model)}
-                    `;
-                    translationModelList.appendChild(li);
+                if (translationPairs.length === 0) {
+                    translationModelList.innerHTML = '<li class="list-group-item text-muted"><em>No translation models found.</em></li>';
+                } else {
+                    for (const pair of translationPairs) {
+                        const status = statuses.translation[pair.model] || 'Not Found';
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        li.innerHTML = `
+                            <span class="d-flex flex-column">
+                                <span>${pair.source} &rarr; ${pair.target}</span>
+                                <small class="text-muted">${pair.model}</small>
+                            </span>
+                            ${createStatusBadge(status, 'translation', pair.model)}
+                        `;
+                        translationModelList.appendChild(li);
+                    }
                 }
 
             } catch (error) {
+                // 2. Display error message in the UI
                 console.error("Could not fetch model statuses:", error);
+                const errorHTML = `<li class="list-group-item text-danger"><strong>Error:</strong> Could not load model statuses. Please ensure the server is running and accessible.</li>`;
+                whisperModelList.innerHTML = errorHTML;
+                translationModelList.innerHTML = errorHTML;
             }
         }
 
