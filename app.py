@@ -5,22 +5,41 @@ import whisper
 import os
 import time
 from transformers import pipeline
+from huggingface_hub import snapshot_download
+from threading import Thread
 
 app = Flask(__name__, static_folder='./save')
 
-# A list of available Whisper models
+# --- Model Configuration ---
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large"]
-# A dictionary for supported translation languages and models
 SUPPORTED_LANGUAGES = {
     "Chinese": "Helsinki-NLP/opus-mt-en-zh",
     "French": "Helsinki-NLP/opus-mt-en-fr",
     "Spanish": "Helsinki-NLP/opus-mt-en-es",
     "German": "Helsinki-NLP/opus-mt-en-de",
 }
-# Cache for translation models
+# In-memory cache for loaded translation pipelines
 translation_pipelines = {}
 
+# --- Model Status & Management ---
+def get_whisper_model_status(model_name):
+    """Checks if a Whisper model is cached locally."""
+    # Whisper caches models in ~/.cache/whisper
+    cache_path = os.path.expanduser(f"~/.cache/whisper/{model_name}.pt")
+    return "Ready" if os.path.exists(cache_path) else "Not Downloaded"
+
+def get_hf_model_status(model_name):
+    """Checks if a Hugging Face model is cached locally."""
+    try:
+        # This will check for the model in the cache without downloading it.
+        # It raises an OSError if the model is not found locally.
+        snapshot_download(repo_id=model_name, local_files_only=True)
+        return "Ready"
+    except (OSError, IOError):
+        return "Not Downloaded"
+
 def get_translation_pipeline(lang):
+    """Loads a translation pipeline, caching it in memory."""
     if lang not in SUPPORTED_LANGUAGES:
         return None
     if lang not in translation_pipelines:
@@ -28,6 +47,15 @@ def get_translation_pipeline(lang):
         print(f"Loading translation model for {lang}: {model_name}")
         translation_pipelines[lang] = pipeline("translation", model=model_name)
     return translation_pipelines[lang]
+
+def download_model_in_background(model_type, model_key):
+    """Target function for background download thread."""
+    print(f"Starting download for {model_type} model: {model_key}")
+    if model_type == 'whisper':
+        whisper.load_model(model_key)
+    elif model_type == 'translation':
+        get_translation_pipeline(model_key)
+    print(f"Finished download for {model_type} model: {model_key}")
 
 
 # Route to serve the new frontend
@@ -43,6 +71,36 @@ def get_models():
 @app.route('/languages')
 def get_languages():
     return jsonify(list(SUPPORTED_LANGUAGES.keys()))
+
+@app.route('/models/status')
+def get_all_model_statuses():
+    statuses = {
+        'whisper': {model: get_whisper_model_status(model) for model in AVAILABLE_MODELS},
+        'translation': {lang: get_hf_model_status(model_name) for lang, model_name in SUPPORTED_LANGUAGES.items()}
+    }
+    return jsonify(statuses)
+
+@app.route('/models/download', methods=['POST'])
+def download_model():
+    data = request.get_json()
+    model_type = data.get('model_type')
+    model_key = data.get('model_key')
+
+    if not model_type or not model_key:
+        return jsonify({'error': 'model_type and model_key are required'}), 400
+
+    # Simple validation
+    if model_type == 'whisper' and model_key not in AVAILABLE_MODELS:
+        return jsonify({'error': 'Invalid whisper model key'}), 400
+    if model_type == 'translation' and model_key not in SUPPORTED_LANGUAGES:
+        return jsonify({'error': 'Invalid translation model key'}), 400
+
+    # Run the download in a background thread
+    thread = Thread(target=download_model_in_background, args=(model_type, model_key))
+    thread.start()
+
+    return jsonify({'message': f'Download started for {model_type} model: {model_key}'}), 202
+
 
 # File upload endpoint (remains the same for now)
 @app.route('/upload', methods=['POST'])
