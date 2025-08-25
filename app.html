@@ -29,6 +29,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="text-center">AI Subtitle Generator</h1>
             <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modelManagementModal">
+                <i-icon type="setting" theme="outline" size="18" style="vertical-align:middle; margin-right:6px;"></i-icon>
                 Model Management
             </button>
         </div>
@@ -41,8 +42,8 @@
                 <input type="text" id="selectedVideoName" class="form-control mt-2" placeholder="No video selected" readonly>
                 <div class="input-group mt-2">
                     <input id="videoUrlInput" class="form-control" placeholder="Or paste YouTube/video URL here">
-                    <button class="btn btn-outline-secondary" id="fetchBtn">Fetch</button>
-                    <button class="btn btn-outline-secondary ms-2" id="previewBtn">Preview</button>
+                    <button class="btn btn-outline-secondary" id="fetchBtn"><i-icon type="download" theme="outline" size="16" style="vertical-align:middle; margin-right:6px;"></i-icon>Fetch</button>
+                    <button class="btn btn-outline-secondary ms-2" id="previewBtn"><i-icon type="video-play" theme="outline" size="16" style="vertical-align:middle; margin-right:6px;"></i-icon>Preview</button>
                 </div>
             </div>
             <div class="col-md-3">
@@ -64,8 +65,8 @@
                 <label for="targetLangSelect" class="form-label">4. Translate To</label>
                 <select class="form-select" id="targetLangSelect"></select>
             </div>
-            <div class="col-md-2 d-grid align-self-end">
-                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()">Generate</button>
+                <div class="col-md-2 d-grid align-self-end">
+                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()"><i-icon type="rocket" theme="outline" size="18" style="vertical-align:middle; margin-right:6px;"></i-icon>Generate</button>
             </div>
             <div class="col-md-2">
                 <label for="subtitleModeSelect" class="form-label">Subtitle Mode</label>
@@ -709,6 +710,10 @@
             downloadVTT(filename, translatedSubtitlesEl.innerText);
         });
 
+    // Enhance Download buttons with icons (IconPark will render these once the web script loads)
+    downloadOriginalBtn.innerHTML = '<i-icon type="file-download" theme="outline" size="14" style="vertical-align:middle; margin-right:6px;"></i-icon>Download VTT';
+    downloadTranslatedBtn.innerHTML = '<i-icon type="file-download" theme="outline" size="14" style="vertical-align:middle; margin-right:6px;"></i-icon>Download VTT';
+
         // Subtitle style controls: color and font size
         const subtitleColorEl = document.getElementById('subtitleColor');
         const subtitleSizeEl = document.getElementById('subtitleSize');
@@ -805,12 +810,12 @@
 
         function createStatusBadge(status, modelType, modelKey) {
             if (status === 'Ready') {
-                return `<span class="badge bg-success me-2">Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}">Delete</button>`;
+                return `<span class="badge bg-success me-2"><i-icon type=\"check\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}"><i-icon type=\"delete\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Delete</button>`;
             }
             if (status === 'Downloading...') {
-                return `<span class="badge bg-warning">Downloading...</span>`;
+                return `<span class="badge bg-warning"><i-icon type=\"download\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Downloading...</span>`;
             }
-            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}">Download</button>`;
+            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}"><i-icon type=\"download\" theme=\"outline\" size=\"12\" style=\"vertical-align:middle; margin-right:6px;\"></i-icon>Download</button>`;
         }
 
         async function handleModelManagementClick(e) {
@@ -899,7 +904,8 @@
             </div>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- IconPark Web (unpkg CDN) -->
+    <script src="https://unpkg.com/@icon-park/web/dist/index.min.js"></script>
 </body>
 </html>
