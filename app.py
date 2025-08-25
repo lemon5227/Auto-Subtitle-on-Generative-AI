@@ -30,6 +30,14 @@ except Exception:
 
 app = Flask(__name__, static_folder='./save')
 
+# Serve additional static assets from ./static under /static/<path:filename>
+@app.route('/static/<path:filename>')
+def extra_static(filename):
+    safe_path = os.path.join(os.getcwd(), 'static', filename)
+    if os.path.exists(safe_path) and os.path.isfile(safe_path):
+        return send_file(safe_path)
+    return jsonify({'error': 'not found'}), 404
+
 # Startup checks: ensure ffmpeg is available and warn/exit if not
 if _shutil.which('ffmpeg') is None:
     print("ERROR: 'ffmpeg' not found in PATH. Please install ffmpeg (apt/brew/conda) before running the server.")

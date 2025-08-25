@@ -1,965 +1,695 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Subtitle Generator</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Improved typography -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auto Subtitle on Generative AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind Play CDN - enables Tailwind utility classes without a build step -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Tailwind theme extension for design tokens (primary, accent, etc.)
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        primary: '#2F88FF',
-                        accent: '#2FD6A4',
-                        <body class="bg-bg font-sans text-slate-800">
-                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <main class="lg:col-span-2">
-                                    <h1 class="text-2xl font-semibold mb-4">Auto Subtitle on Generative AI</h1>
-                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4 mb-6">
-                                        <h2 class="text-lg font-medium mb-2">Video Player & Preview</h2>
-                                        <video id="videoPlayer" class="w-full rounded-md bg-black" controls crossorigin playsinline>
-                                            <source id="videoSource" src="" type="video/mp4">
-                                            Your browser does not support the video tag.
-                                        </video>
-                                        <div id="subtitleOverlay" class="mt-3 p-3 rounded-md bg-gray-50 border border-gray-200" style="min-height:48px"></div>
-                                    </section>
-                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4">
-                                        <h2 class="text-lg font-medium mb-2">Subtitle Editor</h2>
-                                        <textarea id="originalSubtitles" class="w-full p-2 border rounded-md" rows="6"></textarea>
-                                        <textarea id="translatedSubtitles" class="w-full p-2 border rounded-md mt-3" rows="6"></textarea>
-                                    </section>
-                                </main>
-                                <aside class="lg:col-span-1">
-                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4 mb-6">
-                                        <h2 class="text-lg font-medium mb-3">Controls</h2>
-                                        <div class="mb-3">
-                                            <label class="block text-sm font-medium mb-1">Video File</label>
-                                            <input id="videoFile" type="file" class="w-full text-sm" />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="block text-sm font-medium mb-1">Video URL (YouTube)</label>
-                                            <input id="videoUrlInput" type="text" class="w-full p-2 border rounded-md" placeholder="https://www.youtube.com/watch?v=..." />
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button id="fetchBtn" class="flex-1 bg-primary text-white py-2 px-3 rounded-md">Fetch</button>
-                                            <button id="previewBtn" class="flex-1 border border-gray-300 text-sm py-2 px-3 rounded-md">Preview</button>
-                                        </div>
-                                        <div class="mt-3">
-                                            <button id="generateBtn" class="w-full bg-accent text-white py-2 px-3 rounded-md">Generate Subtitles</button>
-                                        </div>
-                                    </section>
-                                    <section class="bg-surface rounded-lg shadow-soft-lg p-4">
-                                        <h2 class="text-lg font-medium mb-3">Subtitle Style</h2>
-                                        <div class="mb-3">
-                                            <label class="block text-sm font-medium mb-1">Color</label>
-                                            <input id="subtitleColor" type="color" class="h-10 w-16 p-1 border rounded-md" value="#FFFFFF">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="block text-sm font-medium mb-1">Size</label>
-                                            <input id="subtitleSize" type="range" min="12" max="48" value="24" class="w-full">
-                                        </div>
-                                    </section>
-                                </aside>
-                            </div>
-                        </div>
-                        </body>
-        .subtitle-editor[contenteditable]{ min-height: 350px; }
-        /* responsive tweaks */
-        @media (max-width: 768px){
-            #videoPlayer{ max-height:360px; }
-            .subtitle-editor{ height:260px; }
+                    colors: { primary: '#2563EB', accent: '#06B6D4', surface: '#FFFFFF', bg: '#F8FAFC', muted: '#64748B' },
+                    boxShadow: { 'card-sm': '0 6px 18px rgba(15,23,36,0.06)' },
+                    borderRadius: { card: '12px' }
+                }
+            }
         }
+    </script>
+    <style>
+        :root{
+            /* 温馨和谐的暖色系配色（柔和珊瑚 + 蜜桃 + 奶油） */
+            --primary: #FF7A6A;    /* 珊瑚主色 */
+            --accent:  #FFD166;    /* 温暖黄色点缀 */
+            --surface: #FFFFFF;    /* 卡片表面 */
+            --bg:      #FFF8F3;    /* 页面背景（奶油色） */
+            --muted:   #7C6B66;    /* 柔和灰褐 */
+            --card-border: #FFE8E1; /* 卡片边框（淡珊瑚） */
+        }
+        body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: var(--bg); color: #0f172a; }
+        .text-shadow { text-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+        #subtitleOverlay { pointer-events: none; }
+        .subtitle-editor { min-height: 160px; padding: 12px; }
+        /* Flat card style */
+        .card-flat { background: var(--surface); border: 1px solid var(--card-border); border-radius: 12px; box-shadow: none; }
+        .accent-btn { background: var(--accent); color: white; }
+        .primary-btn { background: var(--primary); color: white; }
+    /* icons sized in em so they follow surrounding font-size and align on baseline */
+    .icon { width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 0.5rem; fill: currentColor; opacity: .95; display: inline-block; }
+    /* ensure icons render crisply */
+    .icon path, .icon rect, .icon circle { shape-rendering: geometricPrecision; }
+    /* Fine-tune icon baseline for specific contexts */
+    /* Header icons: slightly less negative offset so they sit nicely with larger headings */
+    h1 .icon, .text-2xl .icon { vertical-align: -0.08em; }
+    /* Buttons and small controls: keep icons centered with text */
+    button .icon, .flex.items-center .icon, .px-3 .icon { vertical-align: -0.125em; }
+    /* Micro-interactions */
+    .primary-btn, .accent-btn { transition: transform .12s ease, box-shadow .12s ease; }
+    .primary-btn:hover, .accent-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+    .primary-btn:active, .accent-btn:active { transform: translateY(0); box-shadow: none; }
+    button:focus { outline: 3px solid rgba(255,122,106,0.12); outline-offset: 2px; }
+    /* 装饰性插画样式 */
+    .decor-illustration { width: 160px; height: 56px; display: inline-block; }
+    .decor-small { width: 72px; height: 48px; opacity: .9 }
+    /* fix decorations to viewport edges so they are always visible */
+    .decor-abs { position: fixed; pointer-events: none; opacity: .18; z-index: 0; transform: translateZ(0); }
+    /* main content should sit above decorations */
+    .page-content { position: relative; z-index: 1; }
+    /* hide large decorations on small screens */
+    @media (max-width: 768px) { .decor-abs { display: none; } }
+    /* File input button styling for Controls panel */
+    .file-input-wrapper { display:block; }
+    .file-btn { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; border:1px solid var(--card-border); background:var(--surface); border-radius:8px; cursor:pointer; }
+    .file-btn:hover { box-shadow: 0 6px 14px rgba(15,23,36,0.06); transform: translateY(-1px); }
+    .file-name { margin-left:auto; font-size:0.85rem; color:var(--muted); }
+    .file-label { font-size:0.95rem; color: #2b2b2b; }
+    /* visually hide the native file input while keeping it accessible */
+    .file-input-native { position: absolute; left: -9999px; width:1px; height:1px; overflow:hidden; }
+    </style>
+    <style>
+    /* model list ready badge */
+    .model-badge { display:inline-flex; align-items:center; gap:0.35rem; padding:0.18rem 0.45rem; border-radius:999px; background:#ECFDF5; color:#065F46; font-size:0.8rem; border:1px solid #D1FAE5; }
+    .model-action-group { display:flex; align-items:center; gap:0.5rem; }
     </style>
 </head>
-<body>
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="text-center">AI Subtitle Generator</h1>
-            <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modelManagementModal">
-                <!-- setting icon -->
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-right:6px;"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.31 4.1a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09c.12.64.5 1.2 1 1.51h.28a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.3.66.64.9 1.02z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Model Management
-            </button>
-        </div>
+<body class="antialiased">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- decorative illustrations on sides (inline SVG to avoid CDN/static issues) -->
+        <svg class="decor-abs" style="left: -60px; top: 40px; width:220px; height:220px;" aria-hidden viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="in-g1" x1="0" x2="1"><stop offset="0%" stop-color="#FFB86B"/><stop offset="100%" stop-color="#FF7A59"/></linearGradient>
+                <linearGradient id="in-g2" x1="0" x2="1"><stop offset="0%" stop-color="#FFD8B5"/><stop offset="100%" stop-color="#FFF6EE"/></linearGradient>
+            </defs>
+            <path d="M40 200C20 150 10 110 60 80C110 50 180 40 230 70C280 100 320 160 270 210C220 260 120 250 40 200Z" fill="url(#in-g2)" opacity="0.95"/>
+            <g transform="translate(60,40) scale(0.7)">
+                <circle cx="120" cy="120" r="96" fill="url(#in-g1)"/>
+                <circle cx="120" cy="120" r="72" fill="#FFF6EE" opacity="0.9"/>
+                <path d="M110 96 L170 128 L110 160 Z" fill="#FF7A59"/>
+                <path d="M110 96 L170 128 L110 160 Z" fill-opacity="0" stroke="#FFB86B" stroke-width="2"/>
+            </g>
+        </svg>
 
-        <!-- Controls -->
-        <div class="row g-3 align-items-center mb-4 p-3 bg-light border rounded">
-            <div class="col-md-4">
-                <label for="videoFile" class="form-label">1. Select Video File</label>
-                <input class="form-control" type="file" id="videoFile" accept="video/*">
-                <input type="text" id="selectedVideoName" class="form-control mt-2" placeholder="No video selected" readonly>
-                <div class="input-group mt-2">
-                    <input id="videoUrlInput" class="form-control" placeholder="Or paste YouTube/video URL here">
-                    <button class="btn btn-outline-secondary" id="fetchBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Fetch</button>
-                    <button class="btn btn-outline-secondary ms-2" id="previewBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M4 4v16l16-8-16-8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Preview</button>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <label for="modelSelect" class="form-label">2. Choose Model</label>
-                <select class="form-select" id="modelSelect"></select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Faster Whisper</label>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" value="" id="useFasterCheck">
-                    <label class="form-check-label" for="useFasterCheck">Use faster-whisper</label>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <label for="sourceLangSelect" class="form-label">3. Translate From</label>
-                <select class="form-select" id="sourceLangSelect"></select>
-            </div>
-            <div class="col-md-2">
-                <label for="targetLangSelect" class="form-label">4. Translate To</label>
-                <select class="form-select" id="targetLangSelect"></select>
-            </div>
-                <div class="col-md-2 d-grid align-self-end">
-                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Generate</button>
-            </div>
-            <div class="col-md-2">
-                <label for="subtitleModeSelect" class="form-label">Subtitle Mode</label>
-                <select class="form-select" id="subtitleModeSelect">
-                    <option value="original">Original</option>
-                    <option value="translated">Translated</option>
-                    <option value="bilingual">Bilingual</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Subtitle Style</label>
-                <div class="d-flex align-items-center gap-2">
-                    <input type="color" id="subtitleColor" title="Subtitle color" value="#ffffff" class="form-control form-control-color" style="width:48px; padding:2px;">
-                    <input type="range" id="subtitleSize" min="12" max="48" value="18" class="form-range" style="width:120px;">
-                    <div id="subtitleSizeVal" style="min-width:42px; text-align:center;">18px</div>
-                </div>
+        <svg class="decor-abs" style="right: 12px; bottom: 12px; width:280px; height:160px; opacity: .96;" aria-hidden viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="in-rg1" x1="0" x2="1"><stop offset="0%" stop-color="#FF7A59"/><stop offset="100%" stop-color="#FFB86B"/></linearGradient>
+            </defs>
+            <rect x="20" y="40" rx="20" ry="20" width="260" height="160" fill="url(#in-rg1)" opacity="0.95"/>
+            <g transform="translate(40,80)">
+                <rect x="0" y="0" width="120" height="72" rx="8" fill="#FFF6EE"/>
+                <path d="M16 36 L48 24 V48 L16 36Z" fill="#FF7A59"/>
+            </g>
+            <path d="M120 220 C140 200 180 210 200 190 C220 170 260 180 280 160" stroke="#FFF6EE" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.9"/>
+        </svg>
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-semibold"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="2" y="3" width="20" height="18" rx="3"></rect></g><g fill="var(--primary)"><path d="M9 8v8l6-4-6-4z"></path></g></svg>Auto Subtitle on Generative AI</h1>
+            <div class="flex items-center gap-3">
+                <div class="text-sm text-slate-500">Status: <span id="status">Idle</span></div>
+                <button id="openModelModal" class="px-3 py-2 bg-white border rounded flex items-center gap-2"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="3" y="3" width="18" height="6" rx="1"></rect></g><g fill="var(--primary)"><path d="M7 13h10v6H7z"></path></g></svg><span>Model</span></button>
             </div>
         </div>
 
-        <!-- Status and Video Player -->
-        <div class="row mb-4">
-            <div class="col-12">
-                 <div class="d-flex align-items-center mb-2">
-                    <strong>Status:</strong>
-                    <span id="status" class="ms-2">Idle</span>
-                    <div id="spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        <div class="grid lg:grid-cols-3 gap-6">
+            <main class="lg:col-span-2 space-y-6">
+                <section class="card-flat p-4">
+                    <div class="flex items-center justify-between mb-3"><h2 class="text-lg font-medium"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="2" y="4" width="20" height="14" rx="2"></rect></g><g fill="var(--primary)"><path d="M8 7v10l8-5-8-5z"></path></g></svg>Video Player & Preview</h2>
+                        <svg class="decor-small decor-abs" style="right:12px; top:-6px;" viewBox="0 0 160 56" aria-hidden><g fill="var(--accent)"><circle cx="24" cy="28" r="12"></circle><rect x="44" y="12" width="84" height="32" rx="6"></rect></g><g fill="var(--primary)"><path d="M52 24h40v8H52z"></path></g></svg></div>
+                    <div id="playerContainer" class="relative">
+                        <video id="videoPlayer" class="w-full rounded bg-black" controls playsinline crossorigin></video>
+                        <div id="subtitleOverlay" class="absolute left-0 right-0 bottom-8 text-center text-white text-shadow text-lg px-4 hidden" style="white-space:pre-line;"></div>
                     </div>
+                </section>
+
+                <section class="card-flat p-4">
+                    <h2 class="text-lg font-medium mb-3"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="2" y="4" width="20" height="14" rx="2"></rect></g><g fill="var(--primary)"><path d="M6 9h12v2H6zM6 13h8v2H6z"></path></g></svg>Subtitle Editor</h2>
+                    <textarea id="originalSubtitles" class="w-full p-3 border rounded mb-3" rows="6" placeholder="Original subtitles (VTT)"></textarea>
+                    <textarea id="translatedSubtitles" class="w-full p-3 border rounded" rows="6" placeholder="Translated subtitles"></textarea>
+                </section>
+            </main>
+
+            <aside class="space-y-6">
+                <div class="card-flat p-4">
+                    <h3 class="font-medium mb-3"><svg class="icon" viewBox="0 0 24 24" aria-hidden><path d="M12 2a2 2 0 0 1 2 2v1h2v2h-2v1a2 2 0 1 1-4 0V7H8V5h2V4a2 2 0 0 1 2-2z"></path></svg>Controls</h3>
+                    <label class="block text-sm mb-1">Video File</label>
+                    <div class="file-input-wrapper mb-3 relative">
+                        <label for="videoFile" class="file-btn" tabindex="0">
+                            <!-- folder icon -->
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path></g></svg>
+                            <span class="file-label">Choose file...</span>
+                            <span id="chosenFileName" class="file-name">No file</span>
+                            <input id="videoFile" class="file-input-native" type="file" />
+                        </label>
+                    </div>
+                    <label class="block text-sm mb-1">Video URL (YouTube)</label>
+                    <input id="videoUrlInput" type="text" class="w-full p-2 border rounded mb-3" placeholder="https://www.youtube.com/watch?v=..." />
+                    <div class="flex gap-2 mb-3">
+                        <button id="fetchBtn" class="flex-1 primary-btn py-2 rounded"> <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="10" y="2" width="10" height="6" rx="1"></rect></g><g fill="var(--primary)"><path d="M12 6v10M9 9l3 3 3-3"></path></g></svg>Fetch</button>
+                        <button id="previewBtn" class="flex-1 primary-btn py-2 rounded flex items-center justify-center gap-2 text-center"> 
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="3" y="5" width="18" height="14" rx="2"></rect></g><g fill="var(--primary)"><path d="M8 8v8l8-4-8-4z"></path></g></svg>
+                            <span>Preview</span>
+                        </button>
+                    </div>
+                    <button id="generateBtn" class="w-full accent-btn py-2 rounded"> <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><circle cx="12" cy="7" r="4"></circle></g><g fill="var(--primary)"><path d="M6 18c1-2 4-3 6-3s5 1 6 3v1H6v-1z"></path></g></svg>Generate Subtitles</button>
                 </div>
-                <div id="playerContainer" class="position-relative w-100">
-                    <video id="videoPlayer" class="w-100" controls style="display:block"></video>
-                    <!-- Subtitle overlay for iframe players or custom rendering -->
-                    <div id="subtitleOverlay" style="position:absolute; left:0; right:0; bottom:8%; text-align:center; pointer-events:none; color:white; text-shadow:0 0 6px black; font-size:18px;
-                        padding:0 10px; display:none; white-space:pre-line;"></div>
+
+                <div class="card-flat p-4">
+                    <h3 class="font-medium mb-3">Subtitle Style</h3>
+                    <label class="block text-sm mb-1">Color</label>
+                    <input id="subtitleColor" type="color" value="#ffffff" class="mb-3" />
+                    <label class="block text-sm mb-1">Size</label>
+                    <input id="subtitleSize" type="range" min="12" max="48" value="24" class="w-full" />
                 </div>
-            </div>
+
+                <div class="card-flat p-4">
+                    <h3 class="font-medium mb-3">Quick Actions</h3>
+                    <button id="downloadOriginalBtn" class="w-full mb-2 border py-2 rounded"> <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="6" y="3" width="12" height="6" rx="1"></rect></g><g fill="var(--primary)"><path d="M12 7v10M9 10l3 3 3-3"></path></g></svg>Download Original</button>
+                    <button id="downloadTranslatedBtn" class="w-full border py-2 rounded"> <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="6" y="3" width="12" height="6" rx="1"></rect></g><g fill="var(--primary)"><path d="M12 7v10M9 10l3 3 3-3"></path></g></svg>Download Translated</button>
+                </div>
+
+                <div class="card-flat p-4">
+                    <label class="block text-sm mb-1">Choose Model</label>
+                    <select id="modelSelect" class="w-full p-2 border rounded mb-3"></select>
+                    <div class="flex items-center gap-2 mb-3"><input id="useFasterCheck" type="checkbox"/> <label class="text-sm">Use faster-whisper (GPU)</label></div>
+                    <label class="block text-sm mb-1">Translate From</label>
+                    <select id="sourceLangSelect" class="w-full p-2 border rounded mb-3"></select>
+                    <label class="block text-sm mb-1">Translate To</label>
+                    <select id="targetLangSelect" class="w-full p-2 border rounded mb-3"></select>
+                    <label class="block text-sm mb-1">Subtitle Mode</label>
+                    <select id="subtitleModeSelect" class="w-full p-2 border rounded">
+                        <option value="original">Original</option>
+                        <option value="translated">Translated</option>
+                        <option value="bilingual">Bilingual</option>
+                    </select>
+                </div>
+            </aside>
         </div>
 
-        <!-- Subtitles -->
-        <div class="row">
-            <div class="col-md-6">
-                <h4 class="d-flex justify-content-between align-items-center">
-                    Original Subtitles
-                    <button class="btn btn-sm btn-outline-secondary" id="downloadOriginalBtn">Download VTT</button>
-                </h4>
-                <div id="originalSubtitles" class="subtitle-editor" contenteditable="true"></div>
+    <div class="mt-6 grid lg:grid-cols-2 gap-4">
+            <div>
+                <h4 class="font-medium mb-2">Original Subtitles</h4>
+                <div id="originalSubtitlesPane" class="subtitle-editor bg-white border rounded" contenteditable="true"></div>
             </div>
-            <div class="col-md-6">
-                <h4 class="d-flex justify-content-between align-items-center">
-                    Translated Subtitles
-                    <button class="btn btn-sm btn-outline-secondary" id="downloadTranslatedBtn">Download VTT</button>
-                </h4>
-                <div id="translatedSubtitles" class="subtitle-editor" contenteditable="true"></div>
+            <div>
+                <h4 class="font-medium mb-2">Translated Subtitles</h4>
+                <div id="translatedSubtitlesPane" class="subtitle-editor bg-white border rounded" contenteditable="true"></div>
             </div>
         </div>
     </div>
 
+    <!-- Model Management Modal (simple) -->
+    <div id="modelManagementModal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black/40">
+    <div class="card-flat w-[900px] max-w-full rounded-lg overflow-hidden">
+            <div class="p-4 border-b flex items-center justify-between">
+                <h3 class="font-medium">Model Management</h3>
+                <button id="closeModelModal" class="text-muted flex items-center gap-2"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--primary)"><rect x="5" y="5" width="14" height="14" rx="2"></rect></g><g fill="var(--accent)"><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>Close</button>
+            </div>
+            <div class="p-4 grid grid-cols-2 gap-4">
+                <div>
+                    <h6 class="mb-2">Transcription Models (Whisper)</h6>
+                    <ul id="whisperModelList" class="space-y-2"></ul>
+                </div>
+                <div>
+                    <h6 class="mb-2">Translation Models</h6>
+                    <ul id="translationModelList" class="space-y-2"></ul>
+                </div>
+            </div>
+            <div class="p-4 border-t text-right"><button id="closeModelModal2" class="px-3 py-2 rounded bg-gray-100 flex items-center gap-2"><svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="var(--accent)"><rect x="5" y="5" width="14" height="14" rx="2"></rect></g><g fill="var(--primary)"><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>Close</button></div>
+        </div>
+    </div>
+
     <script>
-        // DOM Elements
-        const videoFileInput = document.getElementById('videoFile');
-        const modelSelect = document.getElementById('modelSelect');
-        const sourceLangSelect = document.getElementById('sourceLangSelect');
-        const targetLangSelect = document.getElementById('targetLangSelect');
+        // --- DOM refs ---
+        const videoFile = document.getElementById('videoFile');
+        const videoUrlInput = document.getElementById('videoUrlInput');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const previewBtn = document.getElementById('previewBtn');
         const generateBtn = document.getElementById('generateBtn');
-        const statusEl = document.getElementById('status');
-        const spinner = document.getElementById('spinner');
         const videoPlayer = document.getElementById('videoPlayer');
-        const originalSubtitlesEl = document.getElementById('originalSubtitles');
-        const translatedSubtitlesEl = document.getElementById('translatedSubtitles');
+        const subtitleOverlay = document.getElementById('subtitleOverlay');
+        const originalSubtitles = document.getElementById('originalSubtitles');
+        const translatedSubtitles = document.getElementById('translatedSubtitles');
+        const originalSubtitlesPane = document.getElementById('originalSubtitlesPane');
+        const translatedSubtitlesPane = document.getElementById('translatedSubtitlesPane');
         const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
         const downloadTranslatedBtn = document.getElementById('downloadTranslatedBtn');
-    const subtitleModeSelect = document.getElementById('subtitleModeSelect');
+        const subtitleColor = document.getElementById('subtitleColor');
+        const subtitleSize = document.getElementById('subtitleSize');
+        const subtitleModeSelect = document.getElementById('subtitleModeSelect');
+        const modelSelect = document.getElementById('modelSelect');
+        const useFasterCheck = document.getElementById('useFasterCheck');
+        const sourceLangSelect = document.getElementById('sourceLangSelect');
+        const targetLangSelect = document.getElementById('targetLangSelect');
+        const openModelModal = document.getElementById('openModelModal');
+        const modelManagementModal = document.getElementById('modelManagementModal');
+        const closeModelModal = document.getElementById('closeModelModal');
+        const closeModelModal2 = document.getElementById('closeModelModal2');
 
-        let originalVttContent = '';
-        let translatedVttContent = '';
-        let uploadedVideoPath = '';
-        let translationPairs = []; // To store the fetched translation pairs
-    let isYouTube = false;
-    let ytPlayer = null;
-    let overlayTimer = null;
-    let _pendingYtId = null;
+    // file chooser nicer UI elements
+    const chosenFileNameEl = document.getElementById('chosenFileName');
 
-        // Helpers to parse and build VTT
+        let originalVtt = '';
+        let translatedVtt = '';
+        let ytPlayer = null;
+        // ensure chosen file name reflects selection
+        if (videoFile) {
+            videoFile.addEventListener('change', (e)=>{
+                try {
+                    const f = (videoFile.files && videoFile.files[0]);
+                    if (f && chosenFileNameEl) {
+                        chosenFileNameEl.innerText = f.name;
+                        // when a local file is chosen, clear any prior serverSavedVideoPath
+                        serverSavedVideoPath = null;
+                        document.getElementById('status').innerText = 'Local file selected: ' + f.name;
+                    } else if (chosenFileNameEl) {
+                        chosenFileNameEl.innerText = 'No file';
+                    }
+                } catch (err) {
+                    console.warn('File select update failed', err);
+                }
+            });
+            // allow keyboard activation of the label
+            const fileLabel = document.querySelector('.file-btn');
+            if (fileLabel) {
+                fileLabel.addEventListener('keydown', (ev)=>{ if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); videoFile.click(); } });
+            }
+        }
+        let overlayTimer = null;
+    let serverSavedVideoPath = null; // server-side filesystem path like './save/<file>'
+
+        // --- VTT helpers ---
         function parseVttCues(vtt) {
             if (!vtt) return [];
             const lines = vtt.split(/\r?\n/);
             const cues = [];
             let i = 0;
-            // skip WEBVTT header if present
             if (lines[i] && lines[i].startsWith('WEBVTT')) i++;
             while (i < lines.length) {
-                // skip empty lines
                 while (i < lines.length && lines[i].trim() === '') i++;
                 if (i >= lines.length) break;
-                // optional cue id
-                let idLine = null;
-                if (lines[i] && !lines[i].includes('-->')) {
-                    idLine = lines[i].trim();
-                    i++;
-                }
+                // skip numeric id
+                if (lines[i] && !lines[i].includes('-->')) { i++; }
                 if (i >= lines.length) break;
-                const timeLine = lines[i] || '';
-                const timeMatch = timeLine.match(/([0-9:.]+)\s*-->\s*([0-9:.]+)/);
-                if (!timeMatch) { i++; continue; }
-                const start = timeMatch[1];
-                const end = timeMatch[2];
+                const tl = lines[i] || '';
+                const m = tl.match(/([0-9:.]+)\s*-->\s*([0-9:.]+)/);
+                if (!m) { i++; continue; }
+                const start = m[1], end = m[2];
                 i++;
-                let textLines = [];
-                while (i < lines.length && lines[i].trim() !== '') {
-                    textLines.push(lines[i]);
-                    i++;
-                }
-                cues.push({start, end, text: textLines.join('\n')});
+                const text = [];
+                while (i < lines.length && lines[i].trim() !== '') { text.push(lines[i]); i++; }
+                cues.push({ start, end, text: text.join('\n') });
             }
             return cues;
         }
 
-        function buildVttFromCues(cues) {
-            let out = 'WEBVTT\n\n';
-            cues.forEach((c, idx) => {
-                out += `${idx+1}\n${c.start} --> ${c.end}\n${c.text}\n\n`;
-            });
-            return out;
-        }
-
-        function buildBilingualVtt(original, translated) {
-            const cuesA = parseVttCues(original);
-            const cuesB = parseVttCues(translated);
-            const maxLen = Math.max(cuesA.length, cuesB.length);
-            const merged = [];
-            for (let i = 0; i < maxLen; i++) {
-                const a = cuesA[i] || {start: (cuesB[i]||{}).start || '00:00:00.000', end: (cuesB[i]||{}).end || '00:00:00.001', text: ''};
-                const b = cuesB[i] || {text: ''};
-                const text = [a.text, b.text].filter(Boolean).join('\n');
-                merged.push({start: a.start, end: a.end, text});
-            }
-            return buildVttFromCues(merged);
-        }
-
-        function updateVideoTracks() {
-            // Remove existing custom tracks
-            const oldTracks = videoPlayer.querySelectorAll('track[data-generated]');
-            oldTracks.forEach(t => t.remove());
-
-            const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
-            // If using iframe (YouTube), show overlay instead of native track
-            const subtitleOverlay = document.getElementById('subtitleOverlay');
-            if (isYouTube) {
-                subtitleOverlay.style.display = 'block';
-                startOverlaySync();
-            } else {
-                subtitleOverlay.style.display = 'none';
-                stopOverlaySync();
-            }
-            if (mode === 'original' && originalVttContent) {
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Original';
-                    track.srclang = 'en';
-                    track.src = URL.createObjectURL(new Blob([originalVttContent], {type: 'text/vtt'}));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-            } else if (mode === 'translated' && translatedVttContent) {
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Translated';
-                    track.srclang = 'zh';
-                    track.src = URL.createObjectURL(new Blob([translatedVttContent], {type: 'text/vtt'}));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-            } else if (mode === 'bilingual' && originalVttContent && translatedVttContent) {
-                const merged = buildBilingualVtt(originalVttContent, translatedVttContent);
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Bilingual';
-                    track.srclang = 'zh-en';
-                    track.src = URL.createObjectURL(new Blob([merged], {type: 'text/vtt'}));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-                // if YouTube, ensure overlay is enabled - overlay rendering happens in sync loop
-            }
-        }
-
-        if (subtitleModeSelect) {
-            subtitleModeSelect.addEventListener('change', updateVideoTracks);
-        }
-
-        function getCurrentTimeSeconds() {
-            // If we have a YT player instance, use its currentTime (more accurate)
-            try {
-                if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-                    return ytPlayer.getCurrentTime() || 0;
-                }
-            } catch (e) {
-                // fallback
-            }
-            return videoPlayer.currentTime || 0;
+        function parseTimeToSeconds(ts) {
+            if (!ts) return 0;
+            const p = ts.split(':').map(Number);
+            if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
+            if (p.length === 2) return p[0]*60 + p[1];
+            return Number(ts) || 0;
         }
 
         function renderOverlayForTime(t) {
             const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
-            const cues = parseVttCues(mode === 'original' ? originalVttContent : (mode === 'translated' ? translatedVttContent : buildBilingualVtt(originalVttContent, translatedVttContent)));
-            if (!cues || cues.length === 0) {
-                document.getElementById('subtitleOverlay').innerText = '';
-                return;
+            let vtt = '';
+            if (mode === 'original') vtt = originalVtt;
+            else if (mode === 'translated') vtt = translatedVtt;
+            else vtt = originalVtt + '\n\n' + translatedVtt;
+            const cues = parseVttCues(vtt);
+            if (!cues || cues.length === 0) { subtitleOverlay.innerText = ''; return; }
+            for (const c of cues) {
+                const s = parseTimeToSeconds(c.start); const e = parseTimeToSeconds(c.end);
+                if (t >= s && t <= e) { subtitleOverlay.innerText = c.text; return; }
             }
-            // find cue where start<=t<end
-            for (let i=0;i<cues.length;i++){
-                const s = parseTimeToSeconds(cues[i].start);
-                const e = parseTimeToSeconds(cues[i].end);
-                if (t >= s && t <= e) {
-                    document.getElementById('subtitleOverlay').innerText = cues[i].text;
-                    return;
-                }
+            subtitleOverlay.innerText = '';
+        }
+
+        function startOverlaySync() { stopOverlaySync(); overlayTimer = setInterval(()=>{ const t = (ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : (videoPlayer.currentTime || 0); renderOverlayForTime(t); }, 200); subtitleOverlay.classList.remove('hidden'); }
+        function stopOverlaySync() { if (overlayTimer) { clearInterval(overlayTimer); overlayTimer = null; } subtitleOverlay.classList.add('hidden'); subtitleOverlay.innerText = ''; }
+
+        // --- YouTube preview ---
+        const youtubeApiPromise = (function(){ let p=null; return function(){ if(p) return p; p = new Promise((resolve,reject)=>{ try{ if(window.YT && window.YT.Player) return resolve(window.YT); const tag=document.createElement('script'); tag.src='https://www.youtube.com/iframe_api'; document.head.appendChild(tag); window.onYouTubeIframeAPIReady = function(){ resolve(window.YT); }; setTimeout(()=>{ if(!window.YT) reject(new Error('YouTube API load timeout')); },10000); }catch(e){ reject(e);} }); return p; }; })();
+
+        function getYouTubeIdFromUrl(url){ try{ const u = new URL(url); if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v'); if (u.hostname === 'youtu.be') return u.pathname.slice(1); }catch(e){} return null; }
+
+        previewBtn.addEventListener('click', async (ev)=>{
+            ev.preventDefault(); const url = (videoUrlInput||{}).value||''; if(!url) return alert('Please enter a YouTube URL'); const vid = getYouTubeIdFromUrl(url.trim()); if(!vid) return alert('Invalid YouTube URL'); try{ const YT = await youtubeApiPromise(); try{ if(ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy(); }catch(e){} const existing = document.getElementById('youtubeIframe'); if (existing) existing.remove(); videoPlayer.style.display='none'; const container = document.getElementById('playerContainer'); const div = document.createElement('div'); div.id='youtubeIframe'; div.style.width='100%'; div.style.height='480px'; container.appendChild(div); ytPlayer = new YT.Player('youtubeIframe',{ height:'480', width:'100%', videoId: vid, playerVars:{ playsinline:1, controls:1, rel:0, modestbranding:1 }, events:{ onReady:(e)=>{ startOverlaySync(); }, onStateChange:()=>{} } }); }catch(err){ alert('YouTube preview failed: ' + (err && err.message)); }
+        });
+
+        // --- Fetch button ---
+        fetchBtn.addEventListener('click', async (e)=>{
+            e.preventDefault(); const url = (videoUrlInput||{}).value||''; if(!url) return alert('Please enter a URL to fetch'); fetchBtn.disabled=true; try{ const resp = await fetch('/fetch',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }); const data = await resp.json(); if (data.error) throw new Error(data.error||'Fetch failed'); const videoId = data.video_id; // poll status
+                const poll = setInterval(async ()=>{ try{ const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`); const sinfo = await sresp.json(); if (sinfo.status === 'Ready') { clearInterval(poll); fetchBtn.disabled=false; const path = sinfo.path; // path is a server filesystem path; expose public URL and remember server-side path
+                            try { const fname = (path||'').split(/[\\/]/).pop(); if (fname) { serverSavedVideoPath = './save/' + fname; videoPlayer.style.display='block'; videoPlayer.src = '/save/' + fname; } else { videoPlayer.style.display='block'; videoPlayer.src = path; serverSavedVideoPath = null; } } catch(e) { videoPlayer.style.display='block'; videoPlayer.src = path; serverSavedVideoPath = null; }
+                            document.getElementById('status').innerText = 'Fetch complete'; } else if (sinfo.status === 'Error') { clearInterval(poll); fetchBtn.disabled=false; document.getElementById('status').innerText = 'Fetch error'; alert('Fetch error: ' + (sinfo.error||'unknown')); } else { document.getElementById('status').innerText = sinfo.status; } }catch(err){ clearInterval(poll); fetchBtn.disabled=false; document.getElementById('status').innerText = 'Fetch polling failed'; } }, 1500);
+            }catch(err){ fetchBtn.disabled=false; alert('Fetch start failed: ' + (err && err.message)); }
+        });
+
+        // --- Generate (extract + translate) ---
+        async function uploadIfNeeded() {
+            // If we have a previously fetched server-side path, use that (server filesystem path expected by /extract_async)
+            if (serverSavedVideoPath) return serverSavedVideoPath;
+
+            // If a file was chosen, upload it and return the server-side saved path
+            if (videoFile && videoFile.files && videoFile.files.length > 0) {
+                const f = videoFile.files[0];
+                const fd = new FormData();
+                fd.append('file', f);
+                document.getElementById('status').innerText = 'Uploading file...';
+                const upl = await fetch('/upload', { method: 'POST', body: fd });
+                const j = await upl.json();
+                if (j.error) throw new Error(j.error || 'Upload failed');
+                return j.video_path;
             }
-            document.getElementById('subtitleOverlay').innerText = '';
-        }
 
-        function parseTimeToSeconds(ts) {
-            // ts format HH:MM:SS.mmm or MM:SS.mmm
-            if (!ts) return 0;
-            const parts = ts.split(':').map(Number);
-            if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
-            if (parts.length === 2) return parts[0]*60 + parts[1];
-            return Number(ts) || 0;
-        }
-
-        function startOverlaySync() {
-            stopOverlaySync();
-            overlayTimer = setInterval(() => {
-                const t = getCurrentTimeSeconds();
-                renderOverlayForTime(t);
-            }, 200);
-        }
-
-        function stopOverlaySync() {
-            if (overlayTimer) {
-                clearInterval(overlayTimer);
-                overlayTimer = null;
-            }
-            document.getElementById('subtitleOverlay').innerText = '';
-        }
-
-        // Fetch initial data on page load
-        window.onload = async () => {
+            // if videoPlayer.src is a local public URL (served from /save), try to convert to server filesystem path
             try {
-                // Fetch whisper models
-                const modelsResponse = await fetch('/models');
-                const models = await modelsResponse.json();
-                models.forEach(model => modelSelect.add(new Option(model, model)));
-
-                // Fetch translation pairs
-                const pairsResponse = await fetch('/translation_pairs');
-                translationPairs = await pairsResponse.json();
-
-                // Populate source language dropdown
-                const sourceLanguages = [...new Set(translationPairs.map(p => p.source))];
-                sourceLanguages.forEach(lang => sourceLangSelect.add(new Option(lang, lang)));
-
-                // Trigger change to populate target dropdown initially
-                updateTargetLanguages();
-
-            } catch (error) {
-                updateStatus('Error loading initial data. Please reload.', true);
-                console.error('Initialization error:', error);
-            }
-                    // Wire fetch button after initialization (start background fetch and poll status)
-            const fetchBtn = document.getElementById('fetchBtn');
-            const videoUrlInput = document.getElementById('videoUrlInput');
-            fetchBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const url = videoUrlInput.value.trim();
-                if (!url) return alert('Please enter a URL to fetch');
-
-                // Always use server-side fetch to download a playable local file (prefer 720p) and then play with native video element
-
-                // Otherwise perform the normal fetch/download flow
-                fetchBtn.disabled = true;
-                updateStatus('Starting fetch...');
-                try {
-                    const resp = await fetch('/fetch', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url })
-                    });
-                    const data = await resp.json();
-                    if (data.error) throw new Error(data.error || 'Fetch failed');
-                    const videoId = data.video_id;
-                    updateStatus('Downloading video...');
-
-                    // Poll status
-                    const poll = setInterval(async () => {
-                        try {
-                            const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
-                            const sinfo = await sresp.json();
-                                if (sinfo.status === 'Downloading...') {
-                                updateStatus('Downloading video...');
-                            } else if (sinfo.status === 'Ready') {
-                                clearInterval(poll);
-                                fetchBtn.disabled = false;
-                                let returnedPath = sinfo.path;
-                                // If the returned path is a subtitle file, try to pick a matching video/audio file
-                                const lower = returnedPath ? returnedPath.toLowerCase() : '';
-                                const isSubtitle = lower.endsWith('.vtt') || lower.endsWith('.srt') || lower.endsWith('.ass') || lower.endsWith('.sub');
-                                if (isSubtitle) {
-                                    const base = returnedPath.replace(/\.[^.]+$/, '');
-                                    const preferred = ['.mp4', '.mkv', '.webm', '.mov', '.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg', '.opus'];
-                                    let found = null;
-                                    for (const ext of preferred) {
-                                        const candidate = base + ext;
-                                        try {
-                                            const head = await fetch(candidate, { method: 'HEAD' });
-                                            if (head && head.ok) { found = candidate; break; }
-                                        } catch (e) {
-                                            // ignore
-                                        }
-                                    }
-                                    if (found) {
-                                        returnedPath = found;
-                                    } else {
-                                        updateStatus('Fetched only a subtitle file; original video not found locally. You can upload the video or try fetching again.', true);
-                                    }
-                                }
-
-                                uploadedVideoPath = returnedPath;
-                                // ensure native player is visible and any iframe removed
-                                const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
-                                if (existingIframe) existingIframe.remove();
-                                isYouTube = false;
-                                videoPlayer.style.display = 'block';
-                                videoPlayer.src = uploadedVideoPath;
-                                const selectedVideoName = document.getElementById('selectedVideoName');
-                                selectedVideoName.value = uploadedVideoPath ? uploadedVideoPath.split('/').pop() : '';
-                                updateStatus('Fetch complete. Ready to extract subtitles.');
-                            } else if (sinfo.status === 'Error') {
-                                clearInterval(poll);
-                                fetchBtn.disabled = false;
-                                updateStatus(`Fetch error: ${sinfo.error}`, true);
-                            } else {
-                                // unknown status string
-                                updateStatus(`Status: ${sinfo.status}`);
-                            }
-                        } catch (err) {
-                            clearInterval(poll);
-                            fetchBtn.disabled = false;
-                            updateStatus(`Error checking fetch status: ${err.message}`, true);
-                        }
-                    }, 2000);
-
-                } catch (err) {
-                    fetchBtn.disabled = false;
-                    updateStatus(`Error: ${err.message}`, true);
+                const src = videoPlayer && (videoPlayer.currentSrc || videoPlayer.src) || '';
+                if (src && src.includes('/save/')) {
+                    // public URL like /save/<file> -> server file path ./save/<file>
+                    const fname = src.split('/').pop();
+                    return './save/' + fname;
                 }
-            });
-
-            // Preview button: load YouTube IFrame API and create an embedded player for overlay preview
-            const previewBtnEl = document.getElementById('previewBtn');
-            // Simple promise wrapper so we only load the API once
-            const youtubeApiPromise = (function(){
-                let p = null;
-                return function() {
-                    if (p) return p;
-                    p = new Promise((resolve, reject) => {
-                        try {
-                            if (window.YT && window.YT.Player) return resolve(window.YT);
-                            const tag = document.createElement('script');
-                            tag.src = 'https://www.youtube.com/iframe_api';
-                            document.head.appendChild(tag);
-                            window.onYouTubeIframeAPIReady = function() { resolve(window.YT); };
-                            // Timeout in case API fails
-                            setTimeout(() => { if (!window.YT) reject(new Error('YouTube API load timeout')); }, 10000);
-                        } catch (e) { reject(e); }
-                    });
-                    return p;
-                };
-            })();
-
-            function getYouTubeIdFromUrl(url) {
-                try {
-                    const u = new URL(url);
-                    if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v');
-                    if (u.hostname === 'youtu.be') return u.pathname.slice(1);
-                } catch (e) { /* ignore */ }
-                return null;
-            }
-
-            previewBtnEl.addEventListener('click', async (ev) => {
-                ev.preventDefault();
-                const url = (document.getElementById('videoUrlInput') || {}).value || '';
-                if (!url) return alert('Please enter a YouTube URL to preview');
-                const vid = getYouTubeIdFromUrl(url.trim());
-                if (!vid) return alert('Not a valid YouTube URL');
-                try {
-                    const YT = await youtubeApiPromise();
-                    // Clean up any existing YT player or iframe
-                    try { if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy(); } catch (e) { }
-                    const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
-                    if (existingIframe) existingIframe.remove();
-                    // Hide native video element
-                    videoPlayer.style.display = 'none';
-                    isYouTube = true;
-                    // Insert container for YT player
-                    const container = document.getElementById('playerContainer');
-                    const div = document.createElement('div');
-                    div.id = 'youtubeIframe';
-                    div.style.width = '100%';
-                    div.style.height = '480px';
-                    container.appendChild(div);
-
-                    // Create YT player
-                    ytPlayer = new YT.Player('youtubeIframe', {
-                        height: '480',
-                        width: '100%',
-                        videoId: vid,
-                        playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
-                        events: {
-                            onReady: (e) => {
-                                // Start overlay sync (user can press play in the embedded player)
-                                document.getElementById('subtitleOverlay').style.display = 'block';
-                                startOverlaySync();
-                            },
-                            onStateChange: (e) => {
-                                // keep overlay in sync; nothing else required here
-                            }
-                        }
-                    });
-                } catch (err) {
-                    console.error('YouTube preview error', err);
-                    alert('YouTube preview failed: ' + (err && err.message ? err.message : err));
-                }
-            });
-        };
-
-        function updateTargetLanguages() {
-            const selectedSource = sourceLangSelect.value;
-            targetLangSelect.innerHTML = ''; // Clear existing options
-            translationPairs
-                .filter(p => p.source === selectedSource)
-                .forEach(p => targetLangSelect.add(new Option(p.target, p.target)));
+            } catch(e){}
+            return null;
         }
 
-        sourceLangSelect.addEventListener('change', updateTargetLanguages);
-
-        function updateStatus(message, isError = false) {
-            statusEl.textContent = message;
-            statusEl.classList.toggle('text-danger', isError);
-            spinner.classList.toggle('d-none', !message.endsWith('...'));
-            generateBtn.disabled = message.endsWith('...');
-        }
-
-        async function startProcess() {
-            const file = videoFileInput.files[0];
-            // Allow using a previously fetched/uploaded video if no file is selected
-            if (!file && !uploadedVideoPath) {
-                alert('Please select a video file first or fetch a video.');
-                return;
-            }
-
-            updateStatus('Starting process...');
-
-            try {
-                // 1. Upload video only if a local file was chosen
-                if (file) {
-                    updateStatus('Uploading video...');
-                    const formData = new FormData();
-                    formData.append('file', file);
-
-                    const uploadResponse = await fetch('/upload', { method: 'POST', body: formData });
-                    const uploadData = await uploadResponse.json();
-                    if (uploadData.error) throw new Error(uploadData.error);
-
-                    uploadedVideoPath = uploadData.video_path;
-                    // If a YouTube link was provided via fetch flow, uploadedVideoPath is local path; keep native
-                    isYouTube = false;
-                    videoPlayer.style.display = 'block';
-                    videoPlayer.src = uploadedVideoPath;
-                } else {
-                    // Use the already-fetched video on the server
-                    updateStatus('Using fetched video...');
-                    // If the fetched path is an actual remote URL (YouTube), request server to download it first
-                    const url = uploadedVideoPath;
-                    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
-                        updateStatus('Requesting server to download YouTube video (for transcription)...');
-                        const fetchResp = await fetch('/fetch', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });
-                        const fetchData = await fetchResp.json();
-                        if (fetchResp.status !== 202) throw new Error(fetchData.error || 'Could not start server-side fetch');
-                        const videoId = fetchData.video_id;
-                        // poll server for fetch status
-                        let serverPath = null;
-                        updateStatus('Server downloading video...');
-                        while (true) {
-                            await new Promise(r => setTimeout(r, 1500));
-                            const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
-                            const sinfo = await sresp.json();
-                            if (sinfo.status === 'Ready') { serverPath = sinfo.path; break; }
-                            if (sinfo.status === 'Error') throw new Error(sinfo.error || 'Server fetch failed');
-                        }
-                        if (!serverPath) throw new Error('Could not obtain downloaded video path from server');
-                        uploadedVideoPath = serverPath;
-                        isYouTube = false;
-                        videoPlayer.style.display = 'block';
-                        videoPlayer.src = uploadedVideoPath;
-                    } else {
-                        isYouTube = false;
-                        videoPlayer.style.display = 'block';
-                        videoPlayer.src = uploadedVideoPath;
-                    }
-                }
-
-                // 2. Start async extraction job (server will slice & transcribe)
-                updateStatus('Starting transcription job...');
-                const model = modelSelect.value;
-                const useFaster = document.getElementById('useFasterCheck').checked;
-                // map source language label to language code for transcription
-                const selectedSourceLang = sourceLangSelect.value;
-                const langCodeMap = { 'English': 'en', 'Chinese': 'zh' };
-                const transcribeLangCode = langCodeMap[selectedSourceLang] || null;
-                const startResp = await fetch('/extract_async', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ video_path: uploadedVideoPath, model: model, segment_time: 300, use_faster: useFaster, language: transcribeLangCode })
-                });
-                const startData = await startResp.json();
-                if (startResp.status !== 202) throw new Error(startData.error || 'Could not start extraction job');
-                const jobId = startData.job_id;
-
-                // Poll job status
-                updateStatus('Transcribing (this may take a while)...');
-                const jobPoll = setInterval(async () => {
+        async function pollExtractStatus(jobId) {
+            return new Promise((resolve, reject) => {
+                const iv = setInterval(async () => {
                     try {
-                        const sresp = await fetch(`/extract/status?job_id=${encodeURIComponent(jobId)}`);
-                        const sdata = await sresp.json();
-                        if (sdata.state === 'running' || sdata.state === 'queued') {
-                            updateStatus(`${sdata.message} (${sdata.percent || 0}%)`);
-                                if (sdata.vtt_partial) {
-                                originalVttContent = 'WEBVTT\n\n' + sdata.vtt_partial;
-                                originalSubtitlesEl.innerText = originalVttContent;
-                                // update video tracks according to selected mode
-                                updateVideoTracks();
-                            }
-                        } else if (sdata.state === 'done') {
-                            clearInterval(jobPoll);
-                            originalVttContent = sdata.vtt_content;
-                            originalSubtitlesEl.innerText = originalVttContent;
-                            // update video tracks according to selected mode
-                            updateVideoTracks();
-
-                            updateStatus('Transcription complete. Translating...');
-                            // Proceed to translation as before
-                            const sourceLang = sourceLangSelect.value;
-                            const targetLang = targetLangSelect.value;
-                            const translateResponse = await fetch('/translate', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    vtt_content: originalVttContent,
-                                    source_lang: sourceLang,
-                                    target_lang: targetLang,
-                                    video_path: uploadedVideoPath
-                                })
-                            });
-                            const translateData = await translateResponse.json();
-                            if (translateData.error) throw new Error(translateData.error);
-                            translatedVttContent = translateData.translated_vtt_content;
-                            translatedSubtitlesEl.innerText = translatedVttContent;
-                            updateStatus('Process complete!', false);
-                        } else if (sdata.state === 'error') {
-                            clearInterval(jobPoll);
-                            throw new Error(sdata.message || 'Extraction error');
+                        const r = await fetch(`/extract/status?job_id=${encodeURIComponent(jobId)}`);
+                        const info = await r.json();
+                        if (info.error) { clearInterval(iv); return reject(new Error(info.error)); }
+                        document.getElementById('status').innerText = info.message || info.state || 'Working';
+                        // progress display when available
+                        if (info.percent !== undefined && info.percent !== null) document.getElementById('status').innerText += ` (${info.percent}%)`;
+                        if ((info.state && info.state === 'done') || (info.state && info.state === 'completed')) {
+                            clearInterval(iv);
+                            return resolve(info);
+                        }
+                        if (info.state && (info.state === 'error' || info.state === 'failed')) {
+                            clearInterval(iv);
+                            return reject(new Error(info.message || 'Extraction failed'));
                         }
                     } catch (err) {
-                        clearInterval(jobPoll);
-                        updateStatus(`Error during transcription: ${err.message}`, true);
+                        clearInterval(iv);
+                        return reject(err);
                     }
-                }, 3000);
-
-                // update video tracks according to selected mode
-                updateVideoTracks();
-
-
-                // 3. Translate subtitles
-                updateStatus('Translating subtitles...');
-                const sourceLang = sourceLangSelect.value;
-                const targetLang = targetLangSelect.value;
-                const translateResponse = await fetch('/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        vtt_content: originalVttContent,
-                        source_lang: sourceLang,
-                        target_lang: targetLang,
-                        video_path: uploadedVideoPath
-                    })
-                });
-                const translateData = await translateResponse.json();
-                if (translateData.error) throw new Error(translateData.error);
-
-                translatedVttContent = translateData.translated_vtt_content;
-                translatedSubtitlesEl.innerText = translatedVttContent;
-
-                updateStatus('Process complete!', false);
-
-            } catch (error) {
-                updateStatus(`Error: ${error.message}`, true);
-                console.error('Processing error:', error);
-            }
-        }
-
-        function downloadVTT(filename, vttContent) {
-            const blob = new Blob([vttContent], { type: 'text/vtt' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        downloadOriginalBtn.addEventListener('click', () => {
-            const filename = uploadedVideoPath ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_original.vtt` : 'original.vtt';
-            downloadVTT(filename, originalSubtitlesEl.innerText);
-        });
-
-        downloadTranslatedBtn.addEventListener('click', () => {
-            const sourceLang = sourceLangSelect.value;
-            const targetLang = targetLangSelect.value;
-            const filename = uploadedVideoPath
-                ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${sourceLang}_to_${targetLang}.vtt`
-                : `translated_${sourceLang}_to_${targetLang}.vtt`;
-            downloadVTT(filename, translatedSubtitlesEl.innerText);
-        });
-
-    // Enhance Download buttons with inline SVG icons
-    downloadOriginalBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
-    downloadTranslatedBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
-
-        // Subtitle style controls: color and font size
-        const subtitleColorEl = document.getElementById('subtitleColor');
-        const subtitleSizeEl = document.getElementById('subtitleSize');
-        const subtitleSizeValEl = document.getElementById('subtitleSizeVal');
-
-        function applySubtitleStyles() {
-            const color = subtitleColorEl.value || '#ffffff';
-            const size = (subtitleSizeEl.value || '18') + 'px';
-            // Apply to overlay
-            const overlay = document.getElementById('subtitleOverlay');
-            overlay.style.color = color;
-            overlay.style.fontSize = size;
-            // Update displayed size
-            subtitleSizeValEl.innerText = size;
-            // Inject ::cue style for native video tracks
-            let cueStyle = document.getElementById('generatedCueStyle');
-            if (!cueStyle) {
-                cueStyle = document.createElement('style');
-                cueStyle.id = 'generatedCueStyle';
-                document.head.appendChild(cueStyle);
-            }
-            cueStyle.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 0 6px black !important; }`;
-        }
-
-        subtitleColorEl.addEventListener('input', applySubtitleStyles);
-        subtitleSizeEl.addEventListener('input', applySubtitleStyles);
-
-        // Initialize styles on load
-        applySubtitleStyles();
-
-    // --- Model Management ---
-    let statusInterval;
-
-        async function populateModelStatus() {
-            // 1. Set loading state immediately
-            const loadingHTML = '<li class="list-group-item text-muted"><em>Loading...</em></li>';
-            whisperModelList.innerHTML = loadingHTML;
-            translationModelList.innerHTML = loadingHTML;
-
-            try {
-                const response = await fetch('/models/status');
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status}`);
-                }
-                const statuses = await response.json();
-
-                    // Populate Whisper models
-                    const whisperModelList = document.getElementById('whisperModelList');
-                    whisperModelList.innerHTML = '';
-                    if (Object.keys(statuses.whisper).length === 0) {
-                        whisperModelList.innerHTML = '<li class="list-group-item text-muted"><em>No models found.</em></li>';
-                    } else {
-                        for (const [model, status] of Object.entries(statuses.whisper)) {
-                            const li = document.createElement('li');
-                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                            li.innerHTML = `
-                                <span>${model}</span>
-                                ${createStatusBadge(status, 'whisper', model)}
-                            `;
-                            whisperModelList.appendChild(li);
-                        }
-                    }
-
-                // Populate Translation models
-                const translationModelList = document.getElementById('translationModelList');
-                translationModelList.innerHTML = '';
-                if (translationPairs.length === 0) {
-                    translationModelList.innerHTML = '<li class="list-group-item text-muted"><em>No translation models found.</em></li>';
-                } else {
-                    for (const pair of translationPairs) {
-                        const status = statuses.translation[pair.model] || 'Not Found';
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        li.innerHTML = `
-                            <span class="d-flex flex-column">
-                                <span>${pair.source} &rarr; ${pair.target}</span>
-                                <small class="text-muted">${pair.model}</small>
-                            </span>
-                            ${createStatusBadge(status, 'translation', pair.model)}
-                        `;
-                        translationModelList.appendChild(li);
-                    }
-                }
-
-            } catch (error) {
-                // 2. Display error message in the UI
-                console.error("Could not fetch model statuses:", error);
-                const errorHTML = `<li class="list-group-item text-danger"><strong>Error:</strong> Could not load model statuses. Please ensure the server is running and accessible.</li>`;
-                whisperModelList.innerHTML = errorHTML;
-                translationModelList.innerHTML = errorHTML;
-            }
-        }
-
-
-        function createStatusBadge(status, modelType, modelKey) {
-            if (status === 'Ready') {
-                return `<span class="badge bg-success me-2"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M20 6L9 17l-5-5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M3 6h18\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M14 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Delete</button>`;
-            }
-            if (status === 'Downloading...') {
-                return `<span class="badge bg-warning"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Downloading...</span>`;
-            }
-            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Download</button>`;
-        }
-
-        async function handleModelManagementClick(e) {
-            if (e.target.classList.contains('download-btn')) {
-                const btn = e.target;
-                const modelType = btn.dataset.type;
-                const modelKey = btn.dataset.key;
-                btn.disabled = true;
-                btn.outerHTML = createStatusBadge('Downloading...', modelType, modelKey);
-                try {
-                    await fetch('/models/download', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
-                    });
-                    if (!statusInterval) {
-                        statusInterval = setInterval(async () => {
-                            await populateModelStatus();
-                        }, 5000);
-                    }
-                } catch (error) {
-                    populateModelStatus();
-                }
-            }
-            if (e.target.classList.contains('delete-btn')) {
-                const btn = e.target;
-                const modelType = btn.dataset.type;
-                const modelKey = btn.dataset.key;
-                btn.disabled = true;
-                btn.outerHTML = '<span class="badge bg-secondary">Deleting...</span>';
-                try {
-                    await fetch('/models/delete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
-                    });
-                    await populateModelStatus();
-                } catch (error) {
-                    populateModelStatus();
-                }
-            }
-        }
-
-        // Attach modal event listeners after DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            const modelManagementModal = document.getElementById('modelManagementModal');
-            if (!modelManagementModal) return;
-            modelManagementModal.addEventListener('show.bs.modal', populateModelStatus);
-            modelManagementModal.addEventListener('hide.bs.modal', () => {
-                if (statusInterval) clearInterval(statusInterval);
-                statusInterval = null;
+                }, 1500);
             });
-            modelManagementModal.addEventListener('click', handleModelManagementClick);
+        }
+
+        generateBtn.addEventListener('click', async (ev)=>{
+            ev.preventDefault();
+            try {
+                generateBtn.disabled = true;
+                document.getElementById('status').innerText = 'Preparing extraction...';
+
+                const videoPathFromUpload = await uploadIfNeeded();
+                if (!videoPathFromUpload) {
+                    generateBtn.disabled = false;
+                    return alert('请先上传视频或使用 Fetch 下载一个视频，然后再生成字幕。');
+                }
+
+                const payload = {
+                    video_path: videoPathFromUpload,
+                    model: (modelSelect && modelSelect.value) ? modelSelect.value : 'tiny',
+                    use_faster: !!(useFasterCheck && useFasterCheck.checked),
+                    language: (sourceLangSelect && sourceLangSelect.value) ? sourceLangSelect.value : null
+                };
+
+                document.getElementById('status').innerText = 'Starting transcription job...';
+                const resp = await fetch('/extract_async', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const j = await resp.json();
+                if (j.error) throw new Error(j.error || 'Failed to start extraction');
+                const jobId = j.job_id;
+                document.getElementById('status').innerText = 'Job started. Polling status...';
+
+                const final = await pollExtractStatus(jobId);
+                // final may contain vtt_content and subtitles_path
+                if (final && final.vtt_content) {
+                    originalVtt = final.vtt_content;
+                    originalSubtitles.value = originalVtt;
+                    originalSubtitlesPane.innerText = originalVtt;
+                    document.getElementById('status').innerText = 'Extraction complete';
+                    // try translate
+                    await translateIfRequested(originalVtt, videoPathFromUpload || serverSavedVideoPath);
+                } else if (final && final.subtitles_path) {
+                    // try to fetch file contents
+                    try {
+                        const got = await fetch(final.subtitles_path);
+                            if (got.ok) {
+                            const text = await got.text();
+                            originalVtt = text;
+                            originalSubtitles.value = text;
+                            originalSubtitlesPane.innerText = text;
+                            document.getElementById('status').innerText = 'Extraction complete';
+                            await translateIfRequested(originalVtt, videoPathFromUpload || serverSavedVideoPath);
+                        } else {
+                            document.getElementById('status').innerText = 'Extraction complete (file saved)';
+                        }
+                    } catch (e) {
+                        document.getElementById('status').innerText = 'Extraction complete (file saved)';
+                    }
+                } else {
+                    document.getElementById('status').innerText = 'Extraction finished but no subtitles returned';
+                }
+            } catch (err) {
+                console.error('Generate failed', err);
+                alert('生成字幕失败: ' + (err && err.message));
+                document.getElementById('status').innerText = 'Generate failed';
+            } finally {
+                generateBtn.disabled = false;
+            }
         });
 
+        // --- Subtitle style controls ---
+        function applySubtitleStyles(){ const color = (subtitleColor && subtitleColor.value) || '#fff'; const size = (subtitleSize && subtitleSize.value) ? subtitleSize.value + 'px' : '24px'; subtitleOverlay.style.color = color; subtitleOverlay.style.fontSize = size; let style = document.getElementById('generatedCueStyle'); if(!style){ style = document.createElement('style'); style.id = 'generatedCueStyle'; document.head.appendChild(style); } style.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 0 6px black !important; }`; }
+        subtitleColor && subtitleColor.addEventListener('input', applySubtitleStyles); subtitleSize && subtitleSize.addEventListener('input', applySubtitleStyles); applySubtitleStyles();
 
+        // --- Sync editable panes with textareas ---
+        setInterval(()=>{ if (originalSubtitlesPane) originalSubtitles.value = originalSubtitlesPane.innerText || ''; if (translatedSubtitlesPane) translatedSubtitles.value = translatedSubtitlesPane.innerText || ''; }, 1200);
+
+        // --- Download helpers ---
+        function downloadVTT(filename, content){ const blob = new Blob([content||''], { type: 'text/vtt' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        downloadOriginalBtn.addEventListener('click', ()=>{ const fn = 'original.vtt'; downloadVTT(fn, originalSubtitles.value || originalSubtitlesPane.innerText); });
+        downloadTranslatedBtn.addEventListener('click', ()=>{ const fn = 'translated.vtt'; downloadVTT(fn, translatedSubtitles.value || translatedSubtitlesPane.innerText); });
+
+        // --- Models, languages and modal wiring ---
+        async function refreshModelStatus() {
+            try {
+                const [statusResp, pairsResp] = await Promise.all([fetch('/models/status'), fetch('/translation_pairs')]);
+                const statuses = await statusResp.json();
+                const pairs = await pairsResp.json();
+
+                // populate whisper models select
+                modelSelect.innerHTML = '';
+                if (statuses && statuses.whisper) {
+                    Object.keys(statuses.whisper).forEach(m => modelSelect.add(new Option(m, m)));
+                }
+
+                // populate modal lists with current status and download buttons
+                const whisperList = document.getElementById('whisperModelList');
+                const translationList = document.getElementById('translationModelList');
+                whisperList.innerHTML = '';
+                translationList.innerHTML = '';
+
+                if (statuses && statuses.whisper) {
+                    for (const [m, st] of Object.entries(statuses.whisper)) {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between';
+                        // show model name and status; add a small ready icon when Ready
+                        const nameSpan = document.createElement('span');
+                        nameSpan.innerHTML = `${m} <small class="text-slate-500">${st}</small>`;
+                        li.appendChild(nameSpan);
+
+                        const actionWrap = document.createElement('div');
+                        actionWrap.className = 'model-action-group';
+
+                        // if Ready, add a green badge
+                        if (st && st.startsWith('Ready')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'model-badge';
+                            badge.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M0 0h24v24H0z"/></g><g fill="currentColor"><path d="M9.3 16.3L4.6 11.6l1.4-1.4 3.3 3.3 8.4-8.4 1.4 1.4-9.8 9.8z"/></g></svg><span>Ready</span>`;
+                            actionWrap.appendChild(badge);
+                        }
+
+                        const btn = document.createElement('button');
+                        btn.className = 'px-2 py-1 text-sm rounded border flex items-center gap-2';
+                        // configure visuals and dataset action
+                        if (st && st.startsWith('Ready')) {
+                            btn.dataset.action = 'remove';
+                            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
+                            btn.innerHTML = `
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M3 6h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g><g fill="currentColor"><path d="M9 6v12m6-12v12"/></g></svg>
+                                <span>Remove</span>
+                            `;
+                        } else {
+                            btn.dataset.action = 'download';
+                            btn.classList.add('bg-blue-50', 'text-primary', 'border-blue-100');
+                            btn.innerHTML = `
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M12 3v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g><g fill="currentColor"><path d="M5 12l7 7 7-7"/></g></svg>
+                                <span>Download</span>
+                            `;
+                        }
+
+                        btn.addEventListener('click', async ()=>{
+                            try {
+                                btn.disabled = true;
+                                if (btn.dataset.action === 'download') {
+                                    await fetch('/models/download', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model_type: 'whisper', model_key: m }) });
+                                    setTimeout(refreshModelStatus, 1000);
+                                } else {
+                                    await fetch('/models/delete', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model_type: 'whisper', model_key: m }) });
+                                    setTimeout(refreshModelStatus, 500);
+                                }
+                            } catch (e) {
+                                console.warn('Model action failed', e);
+                                btn.disabled = false;
+                            }
+                        });
+
+                        actionWrap.appendChild(btn);
+                        li.appendChild(actionWrap);
+                        whisperList.appendChild(li);
+                    }
+                }
+
+                // translation model list from pairs
+                const seenTranslationModels = {};
+                if (pairs && Array.isArray(pairs)) {
+                    pairs.forEach(p => { seenTranslationModels[p.model] = p; });
+                }
+                if (statuses && statuses.translation) {
+                    for (const [m, st] of Object.entries(statuses.translation)) {
+                        const info = seenTranslationModels[m] || { source: '?', target: '?', model: m };
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between';
+                        const nameSpan = document.createElement('span');
+                        nameSpan.innerHTML = `${m} <small class="text-slate-500">(${info.source}→${info.target}) ${st}</small>`;
+                        li.appendChild(nameSpan);
+
+                        const actionWrap = document.createElement('div');
+                        actionWrap.className = 'model-action-group';
+
+                        if (st && st.startsWith('Ready')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'model-badge';
+                            badge.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M0 0h24v24H0z"/></g><g fill="currentColor"><path d="M9.3 16.3L4.6 11.6l1.4-1.4 3.3 3.3 8.4-8.4 1.4 1.4-9.8 9.8z"/></g></svg><span>Ready</span>`;
+                            actionWrap.appendChild(badge);
+                        }
+
+                        const btn = document.createElement('button');
+                        btn.className = 'px-2 py-1 text-sm rounded border flex items-center gap-2';
+                        if (st && st.startsWith('Ready')) {
+                            btn.dataset.action = 'remove';
+                            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
+                            btn.innerHTML = `
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M3 6h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g><g fill="currentColor"><path d="M9 6v12m6-12v12"/></g></svg>
+                                <span>Remove</span>
+                            `;
+                        } else {
+                            btn.dataset.action = 'download';
+                            btn.classList.add('bg-blue-50', 'text-primary', 'border-blue-100');
+                            btn.innerHTML = `
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden><g fill="none"><path d="M12 3v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g><g fill="currentColor"><path d="M5 12l7 7 7-7"/></g></svg>
+                                <span>Download</span>
+                            `;
+                        }
+
+                        btn.addEventListener('click', async ()=>{
+                            try {
+                                btn.disabled = true;
+                                if (btn.dataset.action === 'download') {
+                                    await fetch('/models/download', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model_type: 'translation', model_key: m }) });
+                                    setTimeout(refreshModelStatus, 1000);
+                                } else {
+                                    await fetch('/models/delete', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model_type: 'translation', model_key: m }) });
+                                    setTimeout(refreshModelStatus, 500);
+                                }
+                            } catch (e) {
+                                console.warn('Model action failed', e);
+                                btn.disabled = false;
+                            }
+                        });
+
+                        actionWrap.appendChild(btn);
+                        li.appendChild(actionWrap);
+                        translationList.appendChild(li);
+                    }
+                } else {
+                    // fill translation list from pairs if statuses not returned
+                    Object.keys(seenTranslationModels).forEach(m=>{
+                        const info = seenTranslationModels[m];
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between';
+                        li.innerHTML = `<span>${m} <small class="text-slate-500">(${info.source}→${info.target})</small></span>`;
+                        const btn = document.createElement('button');
+                        btn.className = 'px-2 py-1 text-sm rounded border';
+                        btn.innerText = 'Download';
+                        btn.addEventListener('click', async ()=>{ btn.disabled=true; await fetch('/models/download', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model_type: 'translation', model_key: m }) }); setTimeout(refreshModelStatus, 1000); });
+                        li.appendChild(btn);
+                        translationList.appendChild(li);
+                    });
+                }
+
+                // populate language selectors
+                const srcSet = new Set(); const tgtSet = new Set();
+                if (pairs && Array.isArray(pairs)) {
+                    pairs.forEach(p => { srcSet.add(p.source); tgtSet.add(p.target); });
+                }
+                // ensure sensible defaults
+                const srcArr = Array.from(srcSet).sort(); const tgtArr = Array.from(tgtSet).sort();
+                sourceLangSelect.innerHTML = ''; targetLangSelect.innerHTML = '';
+                sourceLangSelect.add(new Option('Auto', ''));
+                srcArr.forEach(l=> sourceLangSelect.add(new Option(l, l)));
+                targetLangSelect.add(new Option('None', ''));
+                tgtArr.forEach(l=> targetLangSelect.add(new Option(l, l)));
+
+            } catch (err) {
+                console.warn('Could not refresh model status or translation pairs', err);
+            }
+        }
+
+        openModelModal.addEventListener('click', ()=>{ modelManagementModal.classList.remove('hidden'); refreshModelStatus(); });
+        closeModelModal.addEventListener('click', ()=> modelManagementModal.classList.add('hidden'));
+        closeModelModal2.addEventListener('click', ()=> modelManagementModal.classList.add('hidden'));
+
+        // call once at load
+        refreshModelStatus();
+
+        // --- Translation helper ---
+        async function translateIfRequested(vttContent, video_path) {
+            try {
+                const source = (sourceLangSelect && sourceLangSelect.value) || '';
+                const target = (targetLangSelect && targetLangSelect.value) || '';
+                if (!vttContent || !source || !target) return null;
+                document.getElementById('status').innerText = 'Translating subtitles...';
+                const resp = await fetch('/translate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ vtt_content: vttContent, source_lang: source, target_lang: target, video_path: video_path }) });
+                const j = await resp.json();
+                if (j.error) throw new Error(j.error || 'Translate failed');
+                if (j.translated_vtt_content) {
+                    translatedVtt = j.translated_vtt_content;
+                    translatedSubtitles.value = translatedVtt;
+                    translatedSubtitlesPane.innerText = translatedVtt;
+                    document.getElementById('status').innerText = 'Translation complete';
+                    return translatedVtt;
+                }
+                return null;
+            } catch (err) {
+                console.error('Translate failed', err);
+                document.getElementById('status').innerText = 'Translate failed';
+                return null;
+            }
+        }
+
+        // Export some functions for debug/testing
+        window.startOverlaySync = startOverlaySync;
+        window.stopOverlaySync = stopOverlaySync;
+        window.renderOverlayForTime = renderOverlayForTime;
     </script>
 
-    <!-- Model Management Modal -->
-    <div class="modal fade" id="modelManagementModal" tabindex="-1" aria-labelledby="modelManagementModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modelManagementModalLabel">Model Management</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Transcription Models (Whisper)</h6>
-                            <ul class="list-group" id="whisperModelList">
-                                <!-- Populated by JS -->
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Translation Models (Helsinki-NLP)</h6>
-                            <ul class="list-group" id="translationModelList">
-                                <!-- Populated by JS -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- IconPark removed: using inline SVG icons to avoid external CDN dependency -->
 </body>
 </html>

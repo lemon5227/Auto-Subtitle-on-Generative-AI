@@ -1,0 +1,33 @@
+</svg>
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="left decorative illustration">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0%" stop-color="#FFB86B"/>
+      <stop offset="100%" stop-color="#FF7A59"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" x2="1">
+      <stop offset="0%" stop-color="#FFD8B5"/>
+      <stop offset="100%" stop-color="#FFF6EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- soft background blob -->
+  <path d="M40 200C20 150 10 110 60 80C110 50 180 40 230 70C280 100 320 160 270 210C220 260 120 250 40 200Z" fill="url(#g2)" opacity="0.95"/>
+
+  <!-- two-tone circular panel -->
+  <g transform="translate(60,40) scale(0.7)">
+    <circle cx="120" cy="120" r="96" fill="url(#g1)"/>
+    <circle cx="120" cy="120" r="72" fill="#FFF6EE" opacity="0.9"/>
+
+    <!-- play symbol -->
+    <path d="M110 96 L170 128 L110 160 Z" fill="#FF7A59"/>
+    <path d="M110 96 L170 128 L110 160 Z" fill-opacity="0" stroke="#FFB86B" stroke-width="2"/>
+  </g>
+
+  <!-- subtle accent dots -->
+  <circle cx="260" cy="40" r="6" fill="#FFB86B" opacity="0.85"/>
+  <circle cx="280" cy="72" r="4" fill="#FF7A59" opacity="0.8"/>
+
+</svg>
+</svg>

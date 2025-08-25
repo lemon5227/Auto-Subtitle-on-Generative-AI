@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auto Subtitle on Generative AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#2563EB', accent: '#06B6D4', surface: '#FFFFFF', bg: '#F8FAFC', muted: '#64748B' },
+          boxShadow: { 'card-sm': '0 6px 18px rgba(15,23,36,0.06)' },
+          borderRadius: { card: '12px' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background: #F8FAFC; color: #0f172a; }
+    .text-shadow { text-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+    #subtitleOverlay { pointer-events: none; }
+    .subtitle-editor { min-height: 180px; padding: 12px; }
+  </style>
+</head>
+<body class="antialiased">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-semibold">Auto Subtitle on Generative AI</h1>
+      <div class="flex items-center gap-3">
+        <div class="text-sm text-slate-500">Status: <span id="status">Idle</span></div>
+        <button id="openModelModal" class="px-3 py-2 bg-white border rounded">Model</button>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+      <main class="lg:col-span-2 space-y-6">
+        <section class="bg-white rounded-card shadow-card-sm p-4">
+          <h2 class="text-lg font-medium mb-3">Video Player & Preview</h2>
+          <div id="playerContainer" class="relative">
+            <video id="videoPlayer" class="w-full rounded bg-black" controls playsinline crossorigin></video>
+            <div id="subtitleOverlay" class="absolute left-0 right-0 bottom-8 text-center text-white text-shadow text-lg px-4 hidden" style="white-space:pre-line;"></div>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-card shadow-card-sm p-4">
+          <h2 class="text-lg font-medium mb-3">Subtitle Editor</h2>
+          <textarea id="originalSubtitles" class="w-full p-3 border rounded mb-3" rows="6" placeholder="Original subtitles (VTT)"></textarea>
+          <textarea id="translatedSubtitles" class="w-full p-3 border rounded" rows="6" placeholder="Translated subtitles"></textarea>
+        </section>
+      </main>
+
+      <aside class="space-y-6">
+        <div class="bg-white p-4 rounded shadow-card-sm">
+          <h3 class="font-medium mb-3">Controls</h3>
+          <label class="block text-sm mb-1">Video File</label>
+          <input id="videoFile" type="file" class="w-full mb-3" />
+          <label class="block text-sm mb-1">Video URL (YouTube)</label>
+          <input id="videoUrlInput" type="text" class="w-full p-2 border rounded mb-3" placeholder="https://www.youtube.com/watch?v=..." />
+          <div class="flex gap-2 mb-3">
+            <button id="fetchBtn" class="flex-1 bg-primary text-white py-2 rounded">Fetch</button>
+            <button id="previewBtn" class="flex-1 border py-2 rounded">Preview</button>
+          </div>
+          <button id="generateBtn" class="w-full bg-accent text-white py-2 rounded">Generate Subtitles</button>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-card-sm">
+          <h3 class="font-medium mb-3">Subtitle Style</h3>
+          <label class="block text-sm mb-1">Color</label>
+          <input id="subtitleColor" type="color" value="#ffffff" class="mb-3" />
+          <label class="block text-sm mb-1">Size</label>
+          <input id="subtitleSize" type="range" min="12" max="48" value="24" class="w-full" />
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-card-sm">
+          <h3 class="font-medium mb-3">Quick Actions</h3>
+          <button id="downloadOriginalBtn" class="w-full mb-2 border py-2 rounded">Download Original</button>
+          <button id="downloadTranslatedBtn" class="w-full border py-2 rounded">Download Translated</button>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-card-sm">
+          <label class="block text-sm mb-1">Choose Model</label>
+          <select id="modelSelect" class="w-full p-2 border rounded mb-3"></select>
+          <div class="flex items-center gap-2 mb-3"><input id="useFasterCheck" type="checkbox"/> <label class="text-sm">Use faster-whisper (GPU)</label></div>
+          <label class="block text-sm mb-1">Translate From</label>
+          <select id="sourceLangSelect" class="w-full p-2 border rounded mb-3"></select>
+          <label class="block text-sm mb-1">Translate To</label>
+          <select id="targetLangSelect" class="w-full p-2 border rounded mb-3"></select>
+          <label class="block text-sm mb-1">Subtitle Mode</label>
+          <select id="subtitleModeSelect" class="w-full p-2 border rounded">
+            <option value="original">Original</option>
+            <option value="translated">Translated</option>
+            <option value="bilingual">Bilingual</option>
+          </select>
+        </div>
+      </aside>
+    </div>
+
+    <div class="mt-6 grid lg:grid-cols-2 gap-4">
+      <div>
+        <h4 class="font-medium mb-2">Original Subtitles</h4>
+        <div id="originalSubtitlesPane" class="subtitle-editor bg-white border rounded" contenteditable="true"></div>
+      </div>
+      <div>
+        <h4 class="font-medium mb-2">Translated Subtitles</h4>
+        <div id="translatedSubtitlesPane" class="subtitle-editor bg-white border rounded" contenteditable="true"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Management Modal (simple) -->
+  <div id="modelManagementModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/40">
+    <div class="bg-white w-[900px] max-w-full rounded-lg shadow-lg overflow-hidden">
+      <div class="p-4 border-b flex items-center justify-between">
+        <h3 class="font-medium">Model Management</h3>
+        <button id="closeModelModal" class="text-muted">Close</button>
+      </div>
+      <div class="p-4 grid grid-cols-2 gap-4">
+        <div>
+          <h6 class="mb-2">Transcription Models (Whisper)</h6>
+          <ul id="whisperModelList" class="space-y-2"></ul>
+        </div>
+        <div>
+          <h6 class="mb-2">Translation Models</h6>
+          <ul id="translationModelList" class="space-y-2"></ul>
+        </div>
+      </div>
+      <div class="p-4 border-t text-right"><button id="closeModelModal2" class="px-3 py-2 rounded bg-gray-100">Close</button></div>
+    </div>
+  </div>
+
+  <script>
+    // --- DOM refs ---
+    const videoFile = document.getElementById('videoFile');
+    const videoUrlInput = document.getElementById('videoUrlInput');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const subtitleOverlay = document.getElementById('subtitleOverlay');
+    const originalSubtitles = document.getElementById('originalSubtitles');
+    const translatedSubtitles = document.getElementById('translatedSubtitles');
+    const originalSubtitlesPane = document.getElementById('originalSubtitlesPane');
+    const translatedSubtitlesPane = document.getElementById('translatedSubtitlesPane');
+    const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
+    const downloadTranslatedBtn = document.getElementById('downloadTranslatedBtn');
+    const subtitleColor = document.getElementById('subtitleColor');
+    const subtitleSize = document.getElementById('subtitleSize');
+    const subtitleModeSelect = document.getElementById('subtitleModeSelect');
+    const modelSelect = document.getElementById('modelSelect');
+    const useFasterCheck = document.getElementById('useFasterCheck');
+    const sourceLangSelect = document.getElementById('sourceLangSelect');
+    const targetLangSelect = document.getElementById('targetLangSelect');
+    const openModelModal = document.getElementById('openModelModal');
+    const modelManagementModal = document.getElementById('modelManagementModal');
+    const closeModelModal = document.getElementById('closeModelModal');
+    const closeModelModal2 = document.getElementById('closeModelModal2');
+
+    let originalVtt = '';
+    let translatedVtt = '';
+    let ytPlayer = null;
+    let overlayTimer = null;
+
+    // --- VTT helpers ---
+    function parseVttCues(vtt) {
+      if (!vtt) return [];
+      const lines = vtt.split(/\r?\n/);
+      const cues = [];
+      let i = 0;
+      if (lines[i] && lines[i].startsWith('WEBVTT')) i++;
+      while (i < lines.length) {
+        while (i < lines.length && lines[i].trim() === '') i++;
+        if (i >= lines.length) break;
+        // skip numeric id
+        if (lines[i] && !lines[i].includes('-->')) { i++; }
+        if (i >= lines.length) break;
+        const tl = lines[i] || '';
+        const m = tl.match(/([0-9:.]+)\s*-->\s*([0-9:.]+)/);
+        if (!m) { i++; continue; }
+        const start = m[1], end = m[2];
+        i++;
+        const text = [];
+        while (i < lines.length && lines[i].trim() !== '') { text.push(lines[i]); i++; }
+        cues.push({ start, end, text: text.join('\n') });
+      }
+      return cues;
+    }
+
+    function parseTimeToSeconds(ts) {
+      if (!ts) return 0;
+      const p = ts.split(':').map(Number);
+      if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
+      if (p.length === 2) return p[0]*60 + p[1];
+      return Number(ts) || 0;
+    }
+
+    function renderOverlayForTime(t) {
+      const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
+      let vtt = '';
+      if (mode === 'original') vtt = originalVtt;
+      else if (mode === 'translated') vtt = translatedVtt;
+      else vtt = originalVtt + '\n\n' + translatedVtt;
+      const cues = parseVttCues(vtt);
+      if (!cues || cues.length === 0) { subtitleOverlay.innerText = ''; return; }
+      for (const c of cues) {
+        const s = parseTimeToSeconds(c.start); const e = parseTimeToSeconds(c.end);
+        if (t >= s && t <= e) { subtitleOverlay.innerText = c.text; return; }
+      }
+      subtitleOverlay.innerText = '';
+    }
+
+    function startOverlaySync() { stopOverlaySync(); overlayTimer = setInterval(()=>{ const t = (ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : (videoPlayer.currentTime || 0); renderOverlayForTime(t); }, 200); subtitleOverlay.classList.remove('hidden'); }
+    function stopOverlaySync() { if (overlayTimer) { clearInterval(overlayTimer); overlayTimer = null; } subtitleOverlay.classList.add('hidden'); subtitleOverlay.innerText = ''; }
+
+    // --- YouTube preview ---
+    const youtubeApiPromise = (function(){ let p=null; return function(){ if(p) return p; p = new Promise((resolve,reject)=>{ try{ if(window.YT && window.YT.Player) return resolve(window.YT); const tag=document.createElement('script'); tag.src='https://www.youtube.com/iframe_api'; document.head.appendChild(tag); window.onYouTubeIframeAPIReady = function(){ resolve(window.YT); }; setTimeout(()=>{ if(!window.YT) reject(new Error('YouTube API load timeout')); },10000); }catch(e){ reject(e);} }); return p; }; })();
+
+    function getYouTubeIdFromUrl(url){ try{ const u = new URL(url); if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v'); if (u.hostname === 'youtu.be') return u.pathname.slice(1); }catch(e){} return null; }
+
+    previewBtn.addEventListener('click', async (ev)=>{
+      ev.preventDefault(); const url = (videoUrlInput||{}).value||''; if(!url) return alert('Please enter a YouTube URL'); const vid = getYouTubeIdFromUrl(url.trim()); if(!vid) return alert('Invalid YouTube URL'); try{ const YT = await youtubeApiPromise(); try{ if(ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy(); }catch(e){} const existing = document.getElementById('youtubeIframe'); if (existing) existing.remove(); videoPlayer.style.display='none'; const container = document.getElementById('playerContainer'); const div = document.createElement('div'); div.id='youtubeIframe'; div.style.width='100%'; div.style.height='480px'; container.appendChild(div); ytPlayer = new YT.Player('youtubeIframe',{ height:'480', width:'100%', videoId: vid, playerVars:{ playsinline:1, controls:1, rel:0, modestbranding:1 }, events:{ onReady:(e)=>{ startOverlaySync(); }, onStateChange:()=>{} } }); }catch(err){ alert('YouTube preview failed: ' + (err && err.message)); }
+    });
+
+    // --- Fetch button ---
+    fetchBtn.addEventListener('click', async (e)=>{
+      e.preventDefault(); const url = (videoUrlInput||{}).value||''; if(!url) return alert('Please enter a URL to fetch'); fetchBtn.disabled=true; try{ const resp = await fetch('/fetch',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }); const data = await resp.json(); if (data.error) throw new Error(data.error||'Fetch failed'); const videoId = data.video_id; // poll status
+        const poll = setInterval(async ()=>{ try{ const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`); const sinfo = await sresp.json(); if (sinfo.status === 'Ready') { clearInterval(poll); fetchBtn.disabled=false; const path = sinfo.path; videoPlayer.style.display='block'; videoPlayer.src = path; document.getElementById('status').innerText = 'Fetch complete'; } else if (sinfo.status === 'Error') { clearInterval(poll); fetchBtn.disabled=false; document.getElementById('status').innerText = 'Fetch error'; alert('Fetch error: ' + (sinfo.error||'unknown')); } else { document.getElementById('status').innerText = sinfo.status; } }catch(err){ clearInterval(poll); fetchBtn.disabled=false; document.getElementById('status').innerText = 'Fetch polling failed'; } }, 1500);
+      }catch(err){ fetchBtn.disabled=false; alert('Fetch start failed: ' + (err && err.message)); }
+    });
+
+    // --- Subtitle style controls ---
+    function applySubtitleStyles(){ const color = (subtitleColor && subtitleColor.value) || '#fff'; const size = (subtitleSize && subtitleSize.value) ? subtitleSize.value + 'px' : '24px'; subtitleOverlay.style.color = color; subtitleOverlay.style.fontSize = size; let style = document.getElementById('generatedCueStyle'); if(!style){ style = document.createElement('style'); style.id = 'generatedCueStyle'; document.head.appendChild(style); } style.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 0 6px black !important; }`; }
+    subtitleColor && subtitleColor.addEventListener('input', applySubtitleStyles); subtitleSize && subtitleSize.addEventListener('input', applySubtitleStyles); applySubtitleStyles();
+
+    // --- Sync editable panes with textareas ---
+    setInterval(()=>{ if (originalSubtitlesPane) originalSubtitles.value = originalSubtitlesPane.innerText || ''; if (translatedSubtitlesPane) translatedSubtitles.value = translatedSubtitlesPane.innerText || ''; }, 1200);
+
+    // --- Download helpers ---
+    function downloadVTT(filename, content){ const blob = new Blob([content||''], { type: 'text/vtt' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+    downloadOriginalBtn.addEventListener('click', ()=>{ const fn = 'original.vtt'; downloadVTT(fn, originalSubtitles.value || originalSubtitlesPane.innerText); });
+    downloadTranslatedBtn.addEventListener('click', ()=>{ const fn = 'translated.vtt'; downloadVTT(fn, translatedSubtitles.value || translatedSubtitlesPane.innerText); });
+
+    // --- Simple modal wiring ---
+    openModelModal.addEventListener('click', ()=>{ modelManagementModal.classList.remove('hidden'); fetch('/models').then(r=>r.json()).then(list=>{ modelSelect.innerHTML=''; list.forEach(m=> modelSelect.add(new Option(m,m))); }).catch(()=>{}); });
+    closeModelModal.addEventListener('click', ()=> modelManagementModal.classList.add('hidden'));
+    closeModelModal2.addEventListener('click', ()=> modelManagementModal.classList.add('hidden'));
+
+    // Export some functions for debug/testing
+    window.startOverlaySync = startOverlaySync;
+    window.stopOverlaySync = stopOverlaySync;
+    window.renderOverlayForTime = renderOverlayForTime;
+  </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="right decorative illustration">
+  <defs>
+    <linearGradient id="rg1" x1="0" x2="1">
+      <stop offset="0%" stop-color="#FF7A59"/>
+      <stop offset="100%" stop-color="#FFB86B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded card -->
+  <rect x="20" y="40" rx="20" ry="20" width="260" height="160" fill="url(#rg1)" opacity="0.95"/>
+
+  <!-- small video preview frame -->
+  <g transform="translate(40,80)">
+    <rect x="0" y="0" width="120" height="72" rx="8" fill="#FFF6EE"/>
+    <path d="M16 36 L48 24 V48 L16 36Z" fill="#FF7A59"/>
+  </g>
+
+  <!-- decorative squiggle -->
+  <path d="M120 220 C140 200 180 210 200 190 C220 170 260 180 280 160" stroke="#FFF6EE" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.9"/>
+
+</svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200" aria-hidden>
+  <!-- Simple cheerful open-source style illustration: sun, cloud, and abstract device -->
+  <defs>
+    <linearGradient id="gA" x1="0" x2="1"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#FFB38A"/></linearGradient>
+    <linearGradient id="gB" x1="0" x2="1"><stop offset="0" stop-color="#FF7A6A"/><stop offset="1" stop-color="#FF9F8A"/></linearGradient>
+  </defs>
+  <rect width="320" height="200" fill="none"/>
+  <!-- sun -->
+  <circle cx="48" cy="40" r="28" fill="url(#gA)" opacity="0.95" />
+  <!-- cloud -->
+  <g transform="translate(110,28)">
+    <ellipse cx="40" cy="24" rx="42" ry="20" fill="#FFF" opacity="0.95" />
+    <ellipse cx="16" cy="24" rx="22" ry="14" fill="#FFF" />
+    <ellipse cx="64" cy="20" rx="18" ry="12" fill="#FFF" />
+  </g>
+  <!-- device / abstract panel -->
+  <g transform="translate(30,84)">
+    <rect x="0" y="0" width="220" height="96" rx="14" fill="#FFF" stroke="#FFE8E1" stroke-width="2" />
+    <rect x="12" y="12" width="196" height="60" rx="8" fill="url(#gB)" opacity="0.94" />
+    <circle cx="46" cy="42" r="6" fill="#FFF" opacity="0.95" />
+    <rect x="78" y="36" width="86" height="12" rx="6" fill="#FFF" opacity="0.9" />
+  </g>
+  <!-- decorative dots -->
+  <g fill="#FF7A6A" opacity="0.9"><circle cx="286" cy="26" r="6"/><circle cx="300" cy="56" r="4"/></g>
+</svg>
