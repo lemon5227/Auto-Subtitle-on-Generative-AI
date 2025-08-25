@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Subtitle Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .subtitle-editor {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+            padding: 10px;
+            background-color: #fff;
+        }
+        #status {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">AI Subtitle Generator</h1>
+
+        <!-- Controls -->
+        <div class="row g-3 align-items-center mb-4 p-3 bg-light border rounded">
+            <div class="col-md-4">
+                <label for="videoFile" class="form-label">1. Select Video File</label>
+                <input class="form-control" type="file" id="videoFile" accept="video/*">
+            </div>
+            <div class="col-md-3">
+                <label for="modelSelect" class="form-label">2. Choose Model</label>
+                <select class="form-select" id="modelSelect"></select>
+            </div>
+            <div class="col-md-3">
+                <label for="languageSelect" class="form-label">3. Select Language (for translation)</label>
+                <select class="form-select" id="languageSelect"></select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()">Generate</button>
+            </div>
+        </div>
+
+        <!-- Status and Video Player -->
+        <div class="row mb-4">
+            <div class="col-12">
+                 <div class="d-flex align-items-center mb-2">
+                    <strong>Status:</strong>
+                    <span id="status" class="ms-2">Idle</span>
+                    <div id="spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <video id="videoPlayer" class="w-100" controls></video>
+            </div>
+        </div>
+
+        <!-- Subtitles -->
+        <div class="row">
+            <div class="col-md-6">
+                <h4 class="d-flex justify-content-between align-items-center">
+                    Original Subtitles
+                    <button class="btn btn-sm btn-outline-secondary" id="downloadOriginalBtn">Download VTT</button>
+                </h4>
+                <div id="originalSubtitles" class="subtitle-editor" contenteditable="true"></div>
+            </div>
+            <div class="col-md-6">
+                <h4 class="d-flex justify-content-between align-items-center">
+                    Translated Subtitles
+                    <button class="btn btn-sm btn-outline-secondary" id="downloadTranslatedBtn">Download VTT</button>
+                </h4>
+                <div id="translatedSubtitles" class="subtitle-editor" contenteditable="true"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const videoFileInput = document.getElementById('videoFile');
+        const modelSelect = document.getElementById('modelSelect');
+        const languageSelect = document.getElementById('languageSelect');
+        const generateBtn = document.getElementById('generateBtn');
+        const statusEl = document.getElementById('status');
+        const spinner = document.getElementById('spinner');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const originalSubtitlesEl = document.getElementById('originalSubtitles');
+        const translatedSubtitlesEl = document.getElementById('translatedSubtitles');
+        const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
+        const downloadTranslatedBtn = document.getElementById('downloadTranslatedBtn');
+
+        let originalVttContent = '';
+        let translatedVttContent = '';
+        let uploadedVideoPath = '';
+
+        // Fetch models and languages on page load
+        window.onload = async () => {
+            try {
+                // Fetch models
+                const modelsResponse = await fetch('/models');
+                const models = await modelsResponse.json();
+                models.forEach(model => {
+                    const option = new Option(model, model);
+                    modelSelect.add(option);
+                });
+
+                // Fetch languages
+                const languagesResponse = await fetch('/languages');
+                const languages = await languagesResponse.json();
+                languages.forEach(lang => {
+                    const option = new Option(lang, lang);
+                    languageSelect.add(option);
+                });
+            } catch (error) {
+                updateStatus('Error loading initial data. Please reload.', true);
+                console.error('Initialization error:', error);
+            }
+        };
+
+        function updateStatus(message, isError = false) {
+            statusEl.textContent = message;
+            statusEl.classList.toggle('text-danger', isError);
+            spinner.classList.toggle('d-none', !message.endsWith('...'));
+            generateBtn.disabled = message.endsWith('...');
+        }
+
+        async function startProcess() {
+            const file = videoFileInput.files[0];
+            if (!file) {
+                alert('Please select a video file first.');
+                return;
+            }
+
+            updateStatus('Starting process...');
+
+            try {
+                // 1. Upload video
+                updateStatus('Uploading video...');
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const uploadResponse = await fetch('/upload', { method: 'POST', body: formData });
+                const uploadData = await uploadResponse.json();
+                if (uploadData.error) throw new Error(uploadData.error);
+
+                uploadedVideoPath = uploadData.video_path;
+                videoPlayer.src = uploadedVideoPath;
+
+                // 2. Extract subtitles
+                updateStatus('Extracting subtitles (this may take a while)...');
+                const model = modelSelect.value;
+                const extractUrl = `/extract_subtitles?video_path=${encodeURIComponent(uploadedVideoPath)}&model=${model}`;
+                const extractResponse = await fetch(extractUrl);
+                const extractData = await extractResponse.json();
+                if (extractData.error) throw new Error(extractData.error);
+
+                originalVttContent = extractData.vtt_content;
+                originalSubtitlesEl.innerText = originalVttContent;
+
+                // Add subtitles track to video
+                const trackUrl = URL.createObjectURL(new Blob([originalVttContent], {type: 'text/vtt'}));
+                const oldTrack = videoPlayer.querySelector('track');
+                if(oldTrack) oldTrack.remove();
+                const track = document.createElement('track');
+                track.kind = 'subtitles';
+                track.label = 'English';
+                track.srclang = 'en';
+                track.src = trackUrl;
+                track.default = true;
+                videoPlayer.appendChild(track);
+
+
+                // 3. Translate subtitles
+                updateStatus('Translating subtitles...');
+                const targetLang = languageSelect.value;
+                const translateResponse = await fetch('/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vtt_content: originalVttContent,
+                        target_lang: targetLang,
+                        video_path: uploadedVideoPath
+                    })
+                });
+                const translateData = await translateResponse.json();
+                if (translateData.error) throw new Error(translateData.error);
+
+                translatedVttContent = translateData.translated_vtt_content;
+                translatedSubtitlesEl.innerText = translatedVttContent;
+
+                updateStatus('Process complete!', false);
+
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, true);
+                console.error('Processing error:', error);
+            }
+        }
+
+        function downloadVTT(filename, vttContent) {
+            const blob = new Blob([vttContent], { type: 'text/vtt' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        downloadOriginalBtn.addEventListener('click', () => {
+            const filename = uploadedVideoPath ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_original.vtt` : 'original.vtt';
+            downloadVTT(filename, originalSubtitlesEl.innerText);
+        });
+
+        downloadTranslatedBtn.addEventListener('click', () => {
+            const lang = languageSelect.value;
+            const filename = uploadedVideoPath ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${lang}.vtt` : `translated_${lang}.vtt`;
+            downloadVTT(filename, translatedSubtitlesEl.innerText);
+        });
+
+    </script>
+</body>
+</html>

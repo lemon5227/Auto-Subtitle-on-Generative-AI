@@ -1,0 +1,5 @@
+Flask
+openai-whisper
+torch
+transformers
+sentencepiece
