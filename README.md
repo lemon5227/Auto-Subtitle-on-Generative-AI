@@ -43,64 +43,110 @@ sudo apt install -y ffmpeg
 
 3. 安装 Python 依赖：
 
+# Auto-Subtitle-on-Generative-AI / 自动字幕（中英双语）
+
+## 简短说明（中文）
+
+这是一个面向本地运行的字幕生成与翻译演示项目。它结合了语音识别（Whisper）与翻译模型（Hugging Face 提供的模型），支持从本地文件或网络视频（例如 YouTube）提取音轨、生成 VTT 格式字幕，并可将字幕翻译为目标语言。项目包含一个简洁的前端页面，用于上传/下载视频、管理模型与查看/下载字幕。
+
+主要功能：
+- 本地或远程视频下载（后台任务）
+- 使用 Whisper 系列模型进行语音识别并生成 VTT 字幕
+- 使用翻译模型将字幕翻译成指定语言（可选双语显示）
+- 简单的模型管理（列出、下载、删除）
+
+## Quick Overview (English)
+
+This is a demo project for local subtitle generation and translation. It combines speech recognition (OpenAI/Whisper-style models) with translation models (from Hugging Face). The app supports extracting audio from local files or remote videos (e.g., YouTube), producing VTT subtitles, and optionally translating those subtitles into a target language. A lightweight web UI is included for uploads, downloads, model management and subtitle preview.
+
+Key features:
+- Fetch videos (background jobs) from URLs or use local files
+- Transcribe audio into VTT using Whisper models
+- Translate subtitles using translation models (optional bilingual output)
+- Model management UI for downloading/removing models
+
+## 必要依赖 / Requirements
+
+系统依赖（system-level）：
+- ffmpeg （用于音频提取/转码）
+
+Python 依赖（参见 `requirements.txt`）：
+- Flask
+- openai-whisper 或 faster-whisper（可选）
+- torch（根据是否使用 GPU 选择合适版本）
+- transformers
+- sentencepiece
+- huggingface-hub
+- yt-dlp
+
+System note: install `ffmpeg` using your package manager (apt, brew, yum, etc.). For PyTorch, follow https://pytorch.org/ to pick the correct wheel for your CUDA version.
+
+## 快速开始 / Quick start
+
+1) 克隆并进入仓库 / Clone repository
+
+```bash
+git clone https://github.com/<your-user>/Auto-Subtitle-on-Generative-AI.git
+cd Auto-Subtitle-on-Generative-AI
+```
+
+2) 建议使用虚拟环境（conda 或 venv）/ Create a virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate
+# or with conda:
+# conda create -n aitype python=3.11 -y && conda activate aitype
+```
+
+3) 安装依赖 / Install Python dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-如果你需要 GPU 支持，请参考 PyTorch 官方安装命令并替换 `pip install torch`：
-
-```bash
-# CPU 示例（通用）
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-
-# GPU 示例（根据 CUDA 版本选择，请参考 https://pytorch.org/）
-# pip install torch --index-url https://download.pytorch.org/whl/cu121
-```
-
-4. 启动服务：
+4) 启动服务 / Run the web app
 
 ```bash
 python3 app.py
 ```
 
-然后打开浏览器访问：
+访问： http://127.0.0.1:5001/
 
-```
-http://127.0.0.1:5001/
-```
+## 使用说明 / Usage
 
-## 前端使用流程
+- 前端操作：上传本地视频或粘贴 YouTube 链接并点击 Fetch（后台下载）；下载完成后可在播放器预览并点击 Generate 开始转录。
+- 生成完成后页面会显示 VTT 格式的原始字幕（可以编辑），可选择翻译目标语言并下载翻译结果。
 
-1. 在页面选择本地视频文件或在“URL”输入框粘贴 YouTube 等视频链接并点击 Fetch（后台下载）。
-2. 下载完成后视频会自动加载到播放器。点击 Generate 开始提取字幕（选择模型）。
-3. 页面会显示原始字幕（VTT），并可以选择翻译目标语言，翻译后可下载翻译后的 VTT。
+## 后端 API 快速参考 / Backend API (short)
 
-## 重要 API（后端）
+- POST /fetch -> 启动后台下载视频，返回 video_id
+- GET /fetch/status?video_id=... -> 查询下载状态与本地路径
+- POST /upload -> 上传本地文件（前端使用）
+- POST /extract_async -> 启动后台转录任务，参数示例 { video_path, model, use_faster, language }
+- GET /extract/status?job_id=... -> 查询转录任务状态与结果（可能包含 vtt 内容或路径）
+- POST /translate -> 翻译 VTT 内容，参数示例 { vtt_content, source_lang, target_lang, video_path }
+- GET /models/status, POST /models/download, POST /models/delete -> 模型管理
 
-- `GET /models`：返回支持的 Whisper 模型列表
-- `GET /models/status`：返回本地模型（Whisper / 翻译）当前状态（Ready / Not Downloaded / Downloading... / Error）
-- `POST /models/download`：启动后台下载模型（传 `model_type` 和 `model_key`）
-- `POST /models/delete`：删除本地模型缓存（Whisper 或翻译）
-- `POST /fetch`：后台开始下载视频（返回 `video_id`）
-- `GET /fetch/status?video_id=...`：查询视频下载状态与最终本地路径
-- `GET /extract_subtitles?video_path=...&model=...`：对指定视频提取字幕（返回 VTT 内容）
-- `POST /translate`：将 VTT 内容翻译为目标语言（需传 `vtt_content`, `source_lang`, `target_lang`, `video_path`）
+（具体细节请参阅源代码中 `app.py` 中的端点实现）
 
-## 常见问题与排查
+## 常见问题 / Troubleshooting
 
-- 后端报 `ffmpeg` 找不到：请先安装系统 `ffmpeg`（参见上文）。
-- 模型列为 `Not Downloaded`：打开 Model Management，点击 Download，会在后台下载并在完成后显示 Ready。
-- 前端在下载未完成就显示 Ready：后端已实现内存状态跟踪，若仍有误判请重启服务并观察后端日志。
-- 翻译模型删除失败：Hugging Face 缓存目录可能位于 `$HF_HOME` 或 `~/.cache/huggingface/hub`，删除需要相应权限。
+- ffmpeg 未安装：安装系统 ffmpeg。
+- 模型下载失败或磁盘空间不足：检查磁盘空间，并查看服务器端日志（`server.log`）。
+- 翻译/转录速度慢：启用更小的模型或在支持 GPU 的机器上使用 `faster-whisper`/GPU 版本的 PyTorch。
 
-## 打包与发行建议
+## 安全与许可 / Security & License
 
-- 将 `requirements.txt` 与运行说明一并提供。为避免用户安装错误 `torch` 版本，建议在 README 中单独给出 CPU/GPU 的安装示例。
-- 若要制作“一键运行”的镜像或 container，建议创建 `Dockerfile` 或 `environment.yml`（conda），并在镜像中预装 `ffmpeg` 与合适的 `torch` wheel。
+本仓库为演示用途。请遵守第三方模型与服务（Hugging Face、YouTube 等）的使用条款。对于生产部署，请考虑访问控制、模型下载许可以及合规性问题。
 
-## 许可与注意
+## 贡献 / Contributing
 
-本项目演示用途，模型与数据可能受第三方服务条款约束。请确保遵守 Hugging Face、YouTube 等服务的使用规则。
+欢迎提交 issue 或 PR。如需帮助整合其他模型（如 WhisperX、faster-whisper、定制翻译模型），请在 issue 中描述你的需求与硬件环境。
+
+---
+
+如果你希望我把 README 的中文/英文描述进一步本地化（例如把 UI 文案改为中文，或增加更多运行示例），告诉我具体偏好，我会更新它。
 
 
 
