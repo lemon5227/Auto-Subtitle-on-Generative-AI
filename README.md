@@ -17,18 +17,24 @@
 Python 依赖（见 `requirements.txt`）：
 - Flask
 - openai-whisper
-# README language index
+<!-- Language selector: default is English. Click a link to switch. -->
+<p align="right">Language: <strong>English</strong> | <a href="README.zh-CN.md">中文</a></p>
 
-This repository contains two separate README files for clarity:
+# Auto-Subtitle-on-Generative-AI
 
-- `README.en.md` — English version
-- `README.zh-CN.md` — 简体中文版本
+Short description
 
-Please open the file for the language you prefer. Keeping separate files avoids mixing languages and reduces reader confusion.
+This repository's default README is English. If you prefer reading in Chinese, click the "中文" link at the top to open the Chinese README (`README.zh-CN.md`).
 
----
+This project is a demo for local subtitle generation and translation. It combines speech recognition (Whisper-style models) with translation models (from Hugging Face). The app supports extracting audio from local files or remote videos (e.g., YouTube), producing VTT subtitles, and optionally translating those subtitles into a target language. A lightweight web UI is included for uploads, downloads, model management and subtitle preview.
 
-Note: if you want the repository to show a specific README by default on GitHub, rename that file to `README.md` or configure your documentation flow accordingly.
+Key features:
+- Fetch videos (background jobs) from URLs or use local files
+- Transcribe audio into VTT using Whisper models
+- Translate subtitles using translation models (optional bilingual output)
+- Model management UI for downloading/removing models
+
+See also: `README.en.md` (full English version) and `README.zh-CN.md` (中文完整版本).
 ```bash
 
 conda create -n aitype python=3.11 -y
