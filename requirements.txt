@@ -1,7 +1,28 @@
-Flask
+# requirements.txt for Auto-Subtitle-on-Generative-AI
+#
+# Notes:
+# - PyTorch (torch) should generally be installed using the official PyTorch instructions
+#   so you can pick the correct CUDA / CPU wheel for your platform: https://pytorch.org/get-started/locally/
+#   If you do not install torch separately the plain `pip install -r requirements.txt` may install a
+#   CPU-only torch wheel which could be slower on GPU-capable machines.
+# - ffmpeg is a system dependency (apt/brew/conda). Install via your package manager or conda-forge.
+# - If you intend to use faster-whisper, ensure you have a supported GPU and the appropriate CUDA
+#   toolkit + drivers; otherwise rely on the standard openai-whisper implementation.
+
+Flask>=2.0
 openai-whisper
-torch
 transformers
 sentencepiece
 huggingface-hub
 yt-dlp
+
+# Optional but recommended for much faster transcription on supported hardware
+# Install only if your platform supports it and you meet its requirements
+faster-whisper
+
+# Utilities
+tqdm
+
+# Optional / deployment
+gunicorn
+python-dotenv

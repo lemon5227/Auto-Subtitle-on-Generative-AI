@@ -43,7 +43,32 @@ git clone https://github.com/<your-user>/Auto-Subtitle-on-Generative-AI.git
 cd Auto-Subtitle-on-Generative-AI
 ```
 
-2）创建虚拟环境并安装依赖
+2）推荐使用 conda（优先）
+
+如果使用 conda，下面的命令会创建环境、从 conda-forge 安装 ffmpeg，并通过 conda 安装 PyTorch（对 GPU 用户友好）：
+
+```bash
+# 创建并激活 conda 环境
+conda create -n aitype python=3.11 -y
+conda activate aitype
+
+# 从 conda-forge 安装 ffmpeg
+conda install -c conda-forge ffmpeg -y
+
+# 安装 pytorch（CPU 示例）
+conda install pytorch torchvision torchaudio cpuonly -c pytorch -y
+
+# 然后安装其他 python 依赖
+pip install -r requirements.txt
+```
+
+GPU 用户请参考 https://pytorch.org/ 选择合适的 cudatoolkit。示例（CUDA 11.8）:
+
+```bash
+conda install pytorch torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia -y
+```
+
+如果你仍然想使用 venv：
 
 ```bash
 python -m venv venv
