@@ -1,179 +1,453 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Subtitle Generator</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Improved typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>AI 智能字幕生成器 - 专业视频字幕处理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root{
-            --bg:#f4f7fb;
-            --card:#ffffff;
-            --primary:#2F88FF;
-            --muted:#6c757d;
-            --accent:#1f6feb;
-            --success:#28a745;
-            --danger:#dc3545;
-            --shadow: 0 6px 18px rgba(31,40,60,0.08);
-            --overlay-bg: rgba(0,0,0,0.6);
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
+            color: #111827;
+            font-weight: 400;
         }
-        body {
-            background-color: var(--bg);
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-            color: #0f1724;
+        
+        .elegant-card {
+            background: #ffffff;
+            border: 1px solid #f3f4f6;
+            transition: border-color 0.15s ease;
         }
-        .container {
-            max-width: 1200px;
+        
+        .elegant-card:hover {
+            border-color: #e5e7eb;
         }
-        .subtitle-editor {
-            height: 360px;
-            overflow-y: auto;
-            border-radius: 8px;
-            border: 1px solid rgba(15,23,36,0.08);
-            padding: 12px;
-            background-color: var(--card);
-            box-shadow: var(--shadow);
+        
+        .minimal-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
-        #status {
-            font-weight: bold;
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        /* Card-like controls */
-        .controls-card{ background:var(--card); padding:16px; border-radius:10px; box-shadow:var(--shadow); }
-        .btn-primary{ background:var(--primary); border-color:var(--primary); }
-        .btn-primary:hover{ background:var(--accent); border-color:var(--accent); }
-        .btn-outline-secondary{ border-radius:8px; }
-        .input-group .form-control{ border-radius:8px; }
-        /* player styling */
-        #playerContainer{ background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(255,255,255,0.02)); padding:12px; border-radius:10px; box-shadow:var(--shadow); }
-        #videoPlayer{ border-radius:8px; background:#000; max-height:520px; }
-        /* subtitle overlay improved readability */
-        #subtitleOverlay{ display:none; pointer-events:none; color:var(--card); text-shadow:0 2px 6px rgba(0,0,0,0.6); font-weight:600; font-size:18px; line-height:1.3; max-width:90%; margin:0 auto; background:var(--overlay-bg); padding:8px 14px; border-radius:6px;}
-        /* small svg icon alignment helper */
-        .icon-inline{ vertical-align:middle; margin-right:6px; }
-        /* model management modal tweaks */
-        .modal-body .list-group-item{ display:flex; justify-content:space-between; align-items:center; }
-        .subtitle-editor[contenteditable]{ min-height: 350px; }
-        /* responsive tweaks */
-        @media (max-width: 768px){
-            #videoPlayer{ max-height:360px; }
-            .subtitle-editor{ height:260px; }
+        
+        .subtitle-editor { 
+            min-height: 400px; 
+            max-height: 600px; 
+            overflow-y: auto; 
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.6;
+        }
+        
+        .fade-in { 
+            animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .processing-animation {
+            animation: processingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes processingPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        
+        .video-container {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .video-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+        
+        #subtitleOverlay { 
+            pointer-events: none; 
+            background: rgba(0, 0, 0, 0.85); 
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin: 0 20px;
+            font-weight: 600;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #e5e7eb #f9fafb;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f9fafb;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .feature-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .progress-ring {
+            background: conic-gradient(from 0deg, #667eea, #764ba2, #667eea);
+            border-radius: 50%;
+            padding: 4px;
+        }
+        
+        .progress-ring-inner {
+            background: white;
+            border-radius: 50%;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* 自定义开关样式 */
+        #useFasterCheck:checked + div {
+            background: linear-gradient(to right, #667eea, #764ba2);
+        }
+        
+        #useFasterCheck:checked + div .dot {
+            transform: translateX(20px);
+        }
+        
+        .dot {
+            top: 2px;
+            left: 2px;
+        }
+        
+        /* 卡片悬停效果 */
+        .card:hover {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        /* 现代滚动条 */
+        .subtitle-editor::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .subtitle-editor::-webkit-scrollbar-track {
+            background: rgba(229, 231, 235, 0.5);
+            border-radius: 10px;
+        }
+        
+        .subtitle-editor::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        
+        .subtitle-editor::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            background-clip: content-box;
+        }
+        
+        /* 输入框聚焦效果 */
+        input:focus, select:focus, .subtitle-editor:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
     </style>
 </head>
-<body>
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="text-center">AI Subtitle Generator</h1>
-            <div class="d-flex gap-2">
-                <a href="realtime.html" class="btn btn-info">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-right:6px;">
-                        <path d="M12 1a11 11 0 0 0-11 11v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-9A11 11 0 0 0 12 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    实时字幕
-                </a>
-                <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modelManagementModal">
-                    <!-- setting icon -->
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-right:6px;"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.31 4.1a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09c.12.64.5 1.2 1 1.51h.28a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.3.66.64.9 1.02z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    Model Management
-                </button>
-            </div>
+<body class="min-h-screen">
+  <!-- 顶部导航 -->
+  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m0 0V1a1 1 0 011-1h2a1 1 0 011 1v18a1 1 0 01-1 1h-2a1 1 0 01-1-1V4M7 4H5a1 1 0 00-1 1v18a1 1 0 001 1h2a1 1 0 001-1V5a1 1 0 00-1-1z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-semibold text-gray-900">AI 智能字幕生成器</h1>
+          </div>
         </div>
+        <div class="flex items-center space-x-3">
+          <a href="realtime.html" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-900 border border-transparent rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
+            实时转录
+          </a>
+          <button onclick="openModelModal()" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            模型管理
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
 
-        <!-- Controls -->
-        <div class="row g-3 align-items-center mb-4 p-3 bg-light border rounded">
-            <div class="col-md-4">
-                <label for="videoFile" class="form-label">1. Select Video File</label>
-                <input class="form-control" type="file" id="videoFile" accept="video/*">
-                <input type="text" id="selectedVideoName" class="form-control mt-2" placeholder="No video selected" readonly>
-                <div class="input-group mt-2">
-                    <input id="videoUrlInput" class="form-control" placeholder="Or paste YouTube/video URL here">
-                    <button class="btn btn-outline-secondary" id="fetchBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Fetch</button>
-                    <button class="btn btn-outline-secondary ms-2" id="previewBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M4 4v16l16-8-16-8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Preview</button>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <label for="modelSelect" class="form-label">2. Choose Model</label>
-                <select class="form-select" id="modelSelect"></select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Faster Whisper</label>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" value="" id="useFasterCheck">
-                    <label class="form-check-label" for="useFasterCheck">Use faster-whisper</label>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <label for="sourceLangSelect" class="form-label">3. Translate From</label>
-                <select class="form-select" id="sourceLangSelect"></select>
-            </div>
-            <div class="col-md-2">
-                <label for="targetLangSelect" class="form-label">4. Translate To</label>
-                <select class="form-select" id="targetLangSelect"></select>
-            </div>
-                <div class="col-md-2 d-grid align-self-end">
-                <button class="btn btn-primary" id="generateBtn" onclick="startProcess()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Generate</button>
-            </div>
-            <div class="col-md-2">
-                <label for="subtitleModeSelect" class="form-label">Subtitle Mode</label>
-                <select class="form-select" id="subtitleModeSelect">
-                    <option value="original">Original</option>
-                    <option value="translated">Translated</option>
-                    <option value="bilingual">Bilingual</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Subtitle Style</label>
-                <div class="d-flex align-items-center gap-2">
-                    <input type="color" id="subtitleColor" title="Subtitle color" value="#ffffff" class="form-control form-control-color" style="width:48px; padding:2px;">
-                    <input type="range" id="subtitleSize" min="12" max="48" value="18" class="form-range" style="width:120px;">
-                    <div id="subtitleSizeVal" style="min-width:42px; text-align:center;">18px</div>
-                </div>
-            </div>
-        </div>
+  <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
-        <!-- Status and Video Player -->
-        <div class="row mb-4">
-            <div class="col-12">
-                 <div class="d-flex align-items-center mb-2">
-                    <strong>Status:</strong>
-                    <span id="status" class="ms-2">Idle</span>
-                    <div id="spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-                <div id="playerContainer" class="position-relative w-100">
-                    <video id="videoPlayer" class="w-100" controls style="display:block"></video>
-                    <!-- Subtitle overlay for iframe players or custom rendering -->
-                    <div id="subtitleOverlay" style="position:absolute; left:0; right:0; bottom:8%; text-align:center; pointer-events:none; color:white; text-shadow:0 0 6px black; font-size:18px;
-                        padding:0 10px; display:none; white-space:pre-line;"></div>
-                </div>
-            </div>
+    <!-- 控制面板 -->
+    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900">视频处理控制台</h2>
+        <p class="text-sm text-gray-600 mt-1">选择视频文件并配置处理参数</p>
+      </div>
+      
+      <!-- 视频选择 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">1. 选择视频文件</label>
+          <input type="file" id="videoFile" accept="video/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-900 file:text-white hover:file:bg-gray-800 border border-gray-300 rounded-md">
+          <input type="text" id="selectedVideoName" placeholder="未选择视频文件" readonly class="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm text-gray-900">
         </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">或输入视频链接</label>
+          <div class="flex space-x-2">
+            <input id="videoUrlInput" placeholder="粘贴 YouTube 或视频链接..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
+            <button id="fetchBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+              </svg>
+              获取
+            </button>
+            <button id="previewBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15"/>
+              </svg>
+              预览
+            </button>
+          </div>
+        </div>
+      </div>
 
-        <!-- Subtitles -->
-        <div class="row">
-            <div class="col-md-6">
-                <h4 class="d-flex justify-content-between align-items-center">
-                    Original Subtitles
-                    <button class="btn btn-sm btn-outline-secondary" id="downloadOriginalBtn">Download VTT</button>
-                </h4>
-                <div id="originalSubtitles" class="subtitle-editor" contenteditable="true"></div>
-            </div>
-            <div class="col-md-6">
-                <h4 class="d-flex justify-content-between align-items-center">
-                    Translated Subtitles
-                    <button class="btn btn-sm btn-outline-secondary" id="downloadTranslatedBtn">Download VTT</button>
-                </h4>
-                <div id="translatedSubtitles" class="subtitle-editor" contenteditable="true"></div>
-            </div>
+      <!-- 模型和翻译设置 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">2. 选择模型</label>
+          <select id="modelSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
+          </select>
         </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">源语言</label>
+          <select id="sourceLangSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">目标语言</label>
+          <select id="targetLangSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-900 mb-2">字幕模式</label>
+          <select id="subtitleModeSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
+            <option value="original">原文</option>
+            <option value="translated">翻译</option>
+            <option value="bilingual">双语</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 高级选项和生成按钮 -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-6">
+          <label class="inline-flex items-center">
+            <input type="checkbox" id="useFasterCheck" class="rounded border-gray-300 text-gray-900 shadow-sm focus:border-gray-900 focus:ring focus:ring-gray-200 focus:ring-opacity-50">
+            <span class="ml-2 text-sm text-gray-700">使用 Faster-Whisper</span>
+          </label>
+          
+          <div class="flex items-center space-x-3">
+            <label class="text-sm text-gray-700">字幕样式:</label>
+            <input type="color" id="subtitleColor" value="#ffffff" class="h-8 w-16 border border-gray-300 rounded cursor-pointer">
+            <input type="range" id="subtitleSize" min="12" max="48" value="18" class="w-20">
+            <span id="subtitleSizeVal" class="text-sm text-gray-700 min-w-8">18px</span>
+          </div>
+        </div>
+        
+        <button id="generateBtn" onclick="startProcess()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          开始生成字幕
+        </button>
+      </div>
+    </div>
+
+    <!-- 状态显示 -->
+    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <span class="text-lg font-semibold text-gray-900">处理状态:</span>
+          <span id="status" class="ml-3 px-3 py-1 bg-gray-100 text-gray-800 rounded-md text-sm font-medium">空闲中</span>
+          <div id="spinner" class="ml-3 hidden">
+            <svg class="animate-spin h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="text-sm text-gray-500" id="progressText"></div>
+      </div>
+      <div id="progressBar" class="w-full bg-gray-200 rounded-full h-2 mt-4 hidden">
+        <div id="progressFill" class="bg-gray-900 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- 视频播放器 -->
+    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">视频播放器</h2>
+        <div class="flex space-x-2">
+          <button id="fullscreenBtn" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div id="playerContainer" class="relative w-full video-container rounded-lg overflow-hidden">
+        <video id="videoPlayer" class="w-full h-auto max-h-96 bg-black" controls style="display:block;">
+          您的浏览器不支持视频播放。
+        </video>
+        <!-- 字幕叠加层 -->
+        <div id="subtitleOverlay" class="absolute inset-x-0 bottom-8 text-center text-white text-lg font-semibold px-4 py-2 mx-4 rounded-lg hidden whitespace-pre-line"></div>
+      </div>
+    </div>
+
+    <!-- 字幕编辑器 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 原文字幕 -->
+      <div class="elegant-card rounded-lg overflow-hidden minimal-shadow">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">原文字幕</h2>
+          <button id="downloadOriginalBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            下载 VTT
+          </button>
+        </div>
+        <div class="p-6">
+          <div id="originalSubtitles" class="subtitle-editor w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-gray-50 text-sm font-mono" contenteditable="true" placeholder="原文字幕将在这里显示..."></div>
+        </div>
+      </div>
+
+      <!-- 翻译字幕 -->
+      <div class="elegant-card rounded-lg overflow-hidden minimal-shadow">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">翻译字幕</h2>
+          <button id="downloadTranslatedBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            下载 VTT
+          </button>
+        </div>
+        <div class="p-6">
+          <div id="translatedSubtitles" class="subtitle-editor w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-gray-50 text-sm font-mono" contenteditable="true" placeholder="翻译字幕将在这里显示..."></div>
+        </div>
+      </div>
+    </div>
+  </main>
     </div>
 
     <script>
+        // 模态框控制函数
+        function openModelModal() {
+            document.getElementById('modelManagementModal').classList.remove('hidden');
+            populateModelStatus();
+        }
+
+        function closeModelModal() {
+            document.getElementById('modelManagementModal').classList.add('hidden');
+        }
+
+        // 更新状态显示
+        function updateStatus(message, isLoading = false) {
+            const statusEl = document.getElementById('status');
+            const spinner = document.getElementById('spinner');
+            const progressBar = document.getElementById('progressBar');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            statusEl.textContent = message;
+            
+            if (isLoading) {
+                spinner.classList.remove('hidden');
+                statusEl.className = 'ml-3 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium';
+                generateBtn.disabled = true;
+                generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                spinner.classList.add('hidden');
+                statusEl.className = 'ml-3 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium';
+                progressBar.classList.add('hidden');
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function updateProgress(percent, text = '') {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.classList.remove('hidden');
+            progressFill.style.width = percent + '%';
+            if (text) progressText.textContent = text;
+        }
+
         // DOM Elements
         const videoFileInput = document.getElementById('videoFile');
         const modelSelect = document.getElementById('modelSelect');
@@ -568,22 +842,17 @@
 
         sourceLangSelect.addEventListener('change', updateTargetLanguages);
 
-        function updateStatus(message, isError = false) {
-            statusEl.textContent = message;
-            statusEl.classList.toggle('text-danger', isError);
-            spinner.classList.toggle('d-none', !message.endsWith('...'));
-            generateBtn.disabled = message.endsWith('...');
-        }
+        // updateStatus function moved to top for Tailwind compatibility
 
         async function startProcess() {
             const file = videoFileInput.files[0];
             // Allow using a previously fetched/uploaded video if no file is selected
             if (!file && !uploadedVideoPath) {
-                alert('Please select a video file first or fetch a video.');
+                alert('请先选择视频文件或获取视频。');
                 return;
             }
 
-            updateStatus('Starting process...');
+            updateStatus('开始处理...', true);
 
             try {
                 // 1. Upload video only if a local file was chosen
@@ -923,37 +1192,77 @@
 
     </script>
 
-    <!-- Model Management Modal -->
-    <div class="modal fade" id="modelManagementModal" tabindex="-1" aria-labelledby="modelManagementModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modelManagementModalLabel">Model Management</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Transcription Models (Whisper)</h6>
-                            <ul class="list-group" id="whisperModelList">
-                                <!-- Populated by JS -->
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Translation Models (Helsinki-NLP)</h6>
-                            <ul class="list-group" id="translationModelList">
-                                <!-- Populated by JS -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
+  <!-- 模型管理模态框 -->
+  <div id="modelManagementModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-xl bg-white">
+      <div class="mt-3">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-semibold text-gray-900">模型管理</h3>
+          <button onclick="closeModelModal()" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Whisper 模型 -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-lg font-medium text-gray-900 mb-4">转录模型 (Whisper)</h4>
+            <ul id="whisperModelList" class="space-y-2">
+              <!-- 通过 JS 填充 -->
+            </ul>
+          </div>
+
+          <!-- 翻译模型 -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-lg font-medium text-gray-900 mb-4">翻译模型 (Helsinki-NLP)</h4>
+            <ul id="translationModelList" class="space-y-2">
+              <!-- 通过 JS 填充 -->
+            </ul>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button onclick="closeModelModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors duration-200">
+            关闭
+          </button>
+        </div>
+      </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- IconPark removed: using inline SVG icons to avoid external CDN dependency -->
+  </div>
+
+  <script>
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus('空闲中');
+            populateLanguages();
+            populateModels();
+            
+            // 字幕大小滑块事件
+            const subtitleSize = document.getElementById('subtitleSize');
+            const subtitleSizeVal = document.getElementById('subtitleSizeVal');
+            
+            subtitleSize.addEventListener('input', function() {
+                subtitleSizeVal.textContent = this.value + 'px';
+            });
+            
+            // 文件选择事件
+            const videoFileInput = document.getElementById('videoFile');
+            const selectedVideoName = document.getElementById('selectedVideoName');
+            
+            videoFileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    selectedVideoName.value = this.files[0].name;
+                    selectedVideoName.className = 'mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm text-gray-900';
+                } else {
+                    selectedVideoName.value = '未选择视频文件';
+                    selectedVideoName.className = 'mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm text-gray-900';
+                }
+            });
+            
+
+        });
+    </script>
 </body>
 </html>
