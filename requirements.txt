@@ -1,20 +1,38 @@
 # requirements.txt for Auto-Subtitle-on-Generative-AI
 #
-# Notes:
-# - PyTorch (torch) should generally be installed using the official PyTorch instructions
-#   so you can pick the correct CUDA / CPU wheel for your platform: https://pytorch.org/get-started/locally/
-#   If you do not install torch separately the plain `pip install -r requirements.txt` may install a
-#   CPU-only torch wheel which could be slower on GPU-capable machines.
-# - ffmpeg is a system dependency (apt/brew/conda). Install via your package manager or conda-forge.
-# - If you intend to use faster-whisper, ensure you have a supported GPU and the appropriate CUDA
-#   toolkit + drivers; otherwise rely on the standard openai-whisper implementation.
+# Cross-platform installation notes:
+#
+# PYTORCH INSTALLATION:
+# - Linux/Windows: Follow PyTorch.org instructions for CUDA/CPU
+# - macOS Apple Silicon: pip install torch torchvision torchaudio (supports MPS)
+# - macOS Intel: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# FFMPEG (System dependency):
+# - Ubuntu/Debian: sudo apt install ffmpeg
+# - macOS: brew install ffmpeg  
+# - Windows: Download from ffmpeg.org and add to PATH
+# - Conda (all platforms): conda install ffmpeg
+#
+# GPU ACCELERATION:
+# - Linux/Windows: CUDA support with appropriate drivers
+# - macOS Apple Silicon: Automatic MPS (Metal Performance Shaders) support
+# - faster-whisper: CUDA only (Linux/Windows)
 
 Flask>=2.0
+Flask-SocketIO>=5.0
+python-socketio>=5.0
+python-engineio>=4.0
 openai-whisper
 transformers
+accelerate
 sentencepiece
 huggingface-hub
+opencc-python-reimplemented
+# FunASR for SenseVoice support
+torchaudio
+funasr
 yt-dlp
+numpy
 
 # Optional but recommended for much faster transcription on supported hardware
 # Install only if your platform supports it and you meet its requirements

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>实时语音字幕助手</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .subtitle-area { min-height: 300px; max-height: 500px; }
+    .subtitle-item { animation: fadeIn 0.5s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .pulse-ring { 
+      animation: pulse-ring 2s infinite; 
+      border: 2px solid rgba(239, 68, 68, 0.7);
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    @keyframes pulse-ring { 
+      0% { 
+        transform: translate(-50%, -50%) scale(1); 
+        opacity: 1; 
+        border-color: rgba(239, 68, 68, 0.7);
+      } 
+      70% { 
+        transform: translate(-50%, -50%) scale(1.4); 
+        opacity: 0.3; 
+        border-color: rgba(239, 68, 68, 0.3);
+      } 
+      100% { 
+        transform: translate(-50%, -50%) scale(1.6); 
+        opacity: 0; 
+        border-color: rgba(239, 68, 68, 0);
+      } 
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <!-- 顶部导航 -->
+  <nav class="bg-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <a href="app.html" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+            ← 返回主页面
+          </a>
+        </div>
+        <div class="flex items-center">
+          <h1 class="text-xl font-bold text-indigo-600">实时语音字幕助手</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+          <span id="connectionStatus" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            未连接
+          </span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <!-- 控制面板 -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 麦克风控制 -->
+        <div class="text-center">
+          <div class="relative inline-block">
+            <button id="micBtn" class="relative bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-4 px-8 rounded-full shadow-lg transition-all duration-200 flex items-center gap-3 transform hover:scale-105 z-10">
+              <div id="micIcon" class="w-6 h-6">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v2m0-2a6 6 0 0 0 6-6V9a6 6 0 0 0-12 0v3a6 6 0 0 0 6 6zm0 0v2m-4 0h8"/>
+                </svg>
+              </div>
+              <span id="micBtnText">开始监听</span>
+            </button>
+            <div id="pulseRing" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full pulse-ring hidden pointer-events-none z-0"></div>
+          </div>
+          <p id="micStatus" class="mt-3 text-sm text-gray-600">点击开始实时语音识别</p>
+        </div>
+
+        <!-- 语言选择 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">识别语言</label>
+          <select id="languageSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" onchange="updateModelOptions()">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+
+        <!-- 模型选择 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">识别模型</label>
+          <select id="modelSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="large-v3-turbo">large-v3-turbo (最快/推荐)</option>
+            <option value="small">small (推荐中文)</option>
+            <option value="sensevoice">SenseVoice (实验性)</option>
+            <option value="base">base</option>
+            <option value="medium">medium</option>
+            <option value="large">large</option>
+            <option value="large-v3">large-v3 (最新)</option>
+            <option value="distil-small.en">distil-small.en (英文)</option>
+            <option value="distil-medium.en">distil-medium.en (英文)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 字幕显示区 -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">实时字幕</h2>
+        <div class="flex space-x-2">
+          <button id="clearBtn" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50">
+            清空
+          </button>
+          <button id="saveBtn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            保存字幕
+          </button>
+        </div>
+      </div>
+
+      <div id="subtitleArea" class="subtitle-area bg-gray-50 rounded-lg p-4 overflow-y-auto border-2 border-dashed border-gray-200">
+        <div class="text-gray-400 text-center py-8">
+          <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+          <p>字幕将在这里实时显示...</p>
+          <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 保存字幕模态框 -->
+  <div id="saveModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <div class="mt-3">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">保存字幕</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
+            <input type="text" id="filenameInput" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="lecture_subtitles" value="lecture_subtitles">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">格式</label>
+            <select id="formatSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+              <option value="txt">纯文本 (.txt)</option>
+              <option value="vtt">WebVTT (.vtt)</option>
+              <option value="srt">SRT (.srt)</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button id="cancelSaveBtn" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">取消</button>
+          <button id="confirmSaveBtn" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script>
+    // DOM 元素
+    const micBtn = document.getElementById('micBtn');
+    const micBtnText = document.getElementById('micBtnText');
+    const micStatus = document.getElementById('micStatus');
+    const micIcon = document.getElementById('micIcon');
+    const pulseRing = document.getElementById('pulseRing');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const subtitleArea = document.getElementById('subtitleArea');
+    const clearBtn = document.getElementById('clearBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveModal = document.getElementById('saveModal');
+    const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+    const confirmSaveBtn = document.getElementById('confirmSaveBtn');
+    const languageSelect = document.getElementById('languageSelect');
+    const modelSelect = document.getElementById('modelSelect');
+
+    const statusClassMap = {
+      green: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800',
+      yellow: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800',
+      red: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800',
+      gray: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800'
+    };
+
+    // 状态变量
+    let listening = false;
+    let mediaStream = null;
+    let socket = null;
+    let socketReadyPromise = null;
+    let audioContext = null;
+    let audioProcessor = null;
+    let transcriptionActive = false;
+    let subtitles = [];
+    let currentSubtitleId = 0;
+
+    function init() {
+      setupEventListeners();
+      setConnectionStatus('未连接', 'gray');
+
+      if (window.io) {
+        connectSocket().catch(() => setConnectionStatus('未连接', 'gray'));
+      } else {
+        setConnectionStatus('缺少 Socket.IO', 'red');
+      }
+    }
+
+    function setupEventListeners() {
+      micBtn.addEventListener('click', async () => {
+        if (micBtn.disabled) return;
+        try {
+          if (listening) {
+            await stopListening();
+          } else {
+            await startListening();
+          }
+        } catch (error) {
+          console.error('监听切换失败:', error);
+        }
+      });
+
+      clearBtn.addEventListener('click', clearSubtitles);
+      saveBtn.addEventListener('click', showSaveModal);
+      cancelSaveBtn.addEventListener('click', hideSaveModal);
+      confirmSaveBtn.addEventListener('click', saveSubtitles);
+    }
+
+    function setConnectionStatus(text, tone = 'gray') {
+      connectionStatus.textContent = text;
+      connectionStatus.className = statusClassMap[tone] || statusClassMap.gray;
+    }
+
+    function setupSocket() {
+      if (socket || !window.io) {
+        return;
+      }
+
+      socket = io('/', { transports: ['websocket'], autoConnect: false });
+
+      socket.on('connect', () => {
+        setConnectionStatus('已连接', 'green');
+      });
+
+      socket.on('disconnect', () => {
+        setConnectionStatus('未连接', 'gray');
+        transcriptionActive = false;
+        listening = false;
+        resetUIToIdle();
+      });
+
+      socket.on('connect_error', () => {
+        setConnectionStatus('连接错误', 'red');
+      });
+
+      socket.on('reconnect_attempt', () => {
+        setConnectionStatus('重连中...', 'yellow');
+      });
+
+      socket.on('transcription', (payload) => {
+        if (payload?.text) {
+          addSubtitle(payload.text, payload.timestamp);
+        }
+      });
+
+      socket.on('transcription_started', () => {
+        transcriptionActive = true;
+        micStatus.textContent = '正在监听...';
+      });
+
+      socket.on('transcription_stopped', () => {
+        transcriptionActive = false;
+        micStatus.textContent = '已停止监听';
+      });
+
+      socket.on('error', (payload) => {
+        const message = payload?.message || '服务器错误';
+        micStatus.textContent = `错误: ${message}`;
+        setConnectionStatus('错误', 'red');
+        transcriptionActive = false;
+      });
+    }
+
+    function connectSocket() {
+      setupSocket();
+      if (!socket) {
+        return Promise.reject(new Error('Socket.IO 客户端不可用'));
+      }
+
+      if (socket.connected) {
+        setConnectionStatus('已连接', 'green');
+        return Promise.resolve(socket);
+      }
+
+      if (socketReadyPromise) {
+        return socketReadyPromise;
+      }
+
+      socketReadyPromise = new Promise((resolve, reject) => {
+        setConnectionStatus('连接中...', 'yellow');
+
+        const handleConnect = () => {
+          cleanup();
+          setConnectionStatus('已连接', 'green');
+          resolve(socket);
+        };
+
+        const handleError = (err) => {
+          cleanup();
+          setConnectionStatus('连接错误', 'red');
+          reject(err);
+        };
+
+        const cleanup = () => {
+          socket.off('connect', handleConnect);
+          socket.off('connect_error', handleError);
+          socketReadyPromise = null;
+        };
+
+        socket.once('connect', handleConnect);
+        socket.once('connect_error', handleError);
+        socket.connect();
+      });
+
+      return socketReadyPromise;
+    }
+
+    function emitWithAck(event, payload, timeout = 8000) {
+      if (!socket) {
+        return Promise.reject(new Error('Socket 未初始化'));
+      }
+
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            reject(new Error('请求超时'));
+          }
+        }, timeout);
+
+        socket.emit(event, payload, (response) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          clearTimeout(timer);
+          resolve(response);
+        });
+      });
+    }
+
+    async function startListening() {
+      if (listening) {
+        return;
+      }
+
+      try {
+        micBtn.disabled = true;
+        micStatus.textContent = '正在连接服务端...';
+        await connectSocket();
+
+        micStatus.textContent = '正在请求麦克风权限...';
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 16000
+          }
+        });
+
+        micStatus.textContent = '正在启动转写...';
+        const language = languageSelect.value;
+        const model = modelSelect.value;
+        const response = await emitWithAck('start_transcription', { model, language });
+
+        if (!response || response.status !== 'success') {
+          throw new Error(response?.message || '服务端未能启动转写');
+        }
+
+        applyListeningUI();
+        listening = true;
+        startAudioStreaming();
+        micBtn.disabled = false;
+      } catch (err) {
+        console.error('启动监听失败:', err);
+        micStatus.textContent = `启动失败: ${err.message}`;
+        resetUIToIdle();
+        cleanupMediaResources();
+        listening = false;
+        micBtn.disabled = false;
+      }
+    }
+
+    async function stopListening() {
+      if (!listening && !transcriptionActive) {
+        resetUIToIdle();
+        return;
+      }
+
+      // Immediately disable button to prevent multiple clicks
+      micBtn.disabled = true;
+      micBtnText.textContent = '停止中...';
+      listening = false;
+      transcriptionActive = false;
+
+      cleanupMediaResources();
+
+      if (socket && socket.connected) {
+        try {
+          micStatus.textContent = '正在停止转写...';
+          const response = await emitWithAck('stop_transcription', {});
+          if (!response || response.status !== 'success') {
+            throw new Error(response?.message || '服务端停止失败');
+          }
+        } catch (err) {
+          console.warn('停止转写时发生错误:', err);
+          micStatus.textContent = `停止失败: ${err.message}`;
+        }
+      }
+
+      resetUIToIdle();
+      micBtn.disabled = false;
+    }
+
+    function applyListeningUI() {
+      micStatus.textContent = '等待语音输入...';
+      micBtnText.textContent = '停止监听';
+      micBtn.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+      micBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+      pulseRing.classList.remove('hidden');
+      micIcon.innerHTML = `
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/>
+        </svg>
+      `;
+    }
+
+    function resetUIToIdle() {
+      micStatus.textContent = '麦克风未激活';
+      micBtnText.textContent = '开始监听';
+      micBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+      micBtn.classList.add('bg-indigo-500', 'hover:bg-indigo-600');
+      pulseRing.classList.add('hidden');
+      micIcon.innerHTML = `
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v2m0-2a6 6 0 0 0 6-6V9a6 6 0 0 0-12 0v3a6 6 0 0 0 6 6zm0 0v2m-4 0h8"/>
+        </svg>
+      `;
+    }
+
+    function startAudioStreaming() {
+      if (!mediaStream) {
+        return;
+      }
+
+      if (audioContext) {
+        return;
+      }
+
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+      audioProcessor.onaudioprocess = (event) => {
+        if (!transcriptionActive || !socket || !socket.connected) {
+          return;
+        }
+
+        const inputData = event.inputBuffer.getChannelData(0);
+        const pcmData = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          const sample = Math.max(-1, Math.min(1, inputData[i]));
+          pcmData[i] = sample < 0 ? sample * 32768 : sample * 32767;
+        }
+
+        const chunk = arrayBufferToBase64(pcmData.buffer);
+        socket.emit('audio_chunk', { audio: chunk, sampleRate: audioContext.sampleRate });
+      };
+
+      source.connect(audioProcessor);
+      audioProcessor.connect(audioContext.destination);
+    }
+
+    function cleanupMediaResources() {
+      if (audioProcessor) {
+        audioProcessor.disconnect();
+        audioProcessor.onaudioprocess = null;
+        audioProcessor = null;
+      }
+
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    function addSubtitle(text, timestamp = Date.now()) {
+      const subtitleId = ++currentSubtitleId;
+      const timeStr = new Date(timestamp).toLocaleTimeString();
+
+      const subtitleElement = document.createElement('div');
+      subtitleElement.className = 'subtitle-item bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-indigo-500';
+      subtitleElement.innerHTML = `
+        <div class="flex justify-between items-start mb-1">
+          <span class="text-xs text-gray-500">${timeStr}</span>
+          <button onclick="deleteSubtitle(${subtitleId})" class="text-gray-400 hover:text-red-500 text-xs">×</button>
+        </div>
+        <p class="text-gray-800 leading-relaxed">${highlightKeywords(text)}</p>
+      `;
+
+      const initialHint = subtitleArea.querySelector('.text-gray-400');
+      if (initialHint) {
+        initialHint.remove();
+      }
+
+      subtitleArea.appendChild(subtitleElement);
+      subtitleArea.scrollTop = subtitleArea.scrollHeight;
+
+      subtitles.push({ id: subtitleId, text, timestamp });
+    }
+
+    function highlightKeywords(text) {
+      const keywords = ['讲座', '课程', '学习', '理解', '重点', '总结', '问题', '解答'];
+      let highlightedText = text;
+
+      keywords.forEach(keyword => {
+        const regex = new RegExp(`(${keyword})`, 'gi');
+        highlightedText = highlightedText.replace(regex, '<span class="bg-yellow-200 px-1 rounded">$1</span>');
+      });
+
+      return highlightedText;
+    }
+
+    function deleteSubtitle(id) {
+      const element = document.querySelector(`[onclick="deleteSubtitle(${id})"]`);
+      if (element) {
+        const wrapper = element.closest('.subtitle-item');
+        if (wrapper) {
+          wrapper.remove();
+        }
+      }
+      subtitles = subtitles.filter(s => s.id !== id);
+    }
+
+    function clearSubtitles() {
+      subtitleArea.innerHTML = `
+        <div class="text-gray-400 text-center py-8">
+          <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+          <p>字幕将在这里实时显示...</p>
+          <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
+        </div>
+      `;
+      subtitles = [];
+      currentSubtitleId = 0;
+    }
+
+    function showSaveModal() {
+      saveModal.classList.remove('hidden');
+    }
+
+    function hideSaveModal() {
+      saveModal.classList.add('hidden');
+    }
+
+    function saveSubtitles() {
+      const filename = document.getElementById('filenameInput').value || 'lecture_subtitles';
+      const format = document.getElementById('formatSelect').value;
+
+      let content = '';
+      let mimeType = 'text/plain';
+      let extension = 'txt';
+
+      switch (format) {
+        case 'vtt':
+          content = generateVTT();
+          mimeType = 'text/vtt';
+          extension = 'vtt';
+          break;
+        case 'srt':
+          content = generateSRT();
+          mimeType = 'text/plain';
+          extension = 'srt';
+          break;
+        default:
+          content = generateTXT();
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      hideSaveModal();
+    }
+
+    function generateTXT() {
+      return subtitles.map(s => {
+        const time = new Date(s.timestamp).toLocaleString();
+        return `[${time}] ${s.text}`;
+      }).join('\n\n');
+    }
+
+    function generateVTT() {
+      let vtt = 'WEBVTT\n\n';
+      subtitles.forEach((s, index) => {
+        const start = new Date(s.timestamp).toISOString().substr(11, 8);
+        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 8);
+        vtt += `${index + 1}\n${start}.000 --> ${end}.000\n${s.text}\n\n`;
+      });
+      return vtt;
+    }
+
+    function generateSRT() {
+      return subtitles.map((s, index) => {
+        const startIso = new Date(s.timestamp).toISOString();
+        const endIso = new Date(s.timestamp + 5000).toISOString();
+        const start = `${startIso.substr(11, 8)},${startIso.substr(20, 3)}`;
+        const end = `${endIso.substr(11, 8)},${endIso.substr(20, 3)}`;
+        return `${index + 1}\n${start} --> ${end}\n${s.text}\n`;
+      }).join('\n');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function updateModelOptions() {
+      const language = languageSelect.value;
+      const modelSelect = document.getElementById('modelSelect');
+      const currentValue = modelSelect.value;
+      
+      // Clear current options
+      modelSelect.innerHTML = '';
+      
+      if (language === 'zh') {
+        // Chinese language options
+        modelSelect.innerHTML = `
+          <option value="sensevoice">SenseVoice (中文专用/备选Whisper)</option>
+          <option value="small">small (推荐中文)</option>
+          <option value="base">base</option>
+          <option value="medium">medium</option>
+          <option value="large">large</option>
+          <option value="large-v3">large-v3 (最新)</option>
+          <option value="distil-small.en">distil-small.en (英文)</option>
+          <option value="distil-medium.en">distil-medium.en (英文)</option>
+        `;
+        // Default to small for Chinese (more reliable)
+        modelSelect.value = 'small';
+      } else {
+        // Other languages options
+        modelSelect.innerHTML = `
+          <option value="base">base</option>
+          <option value="small">small</option>
+          <option value="medium">medium</option>
+          <option value="large">large</option>
+          <option value="large-v3">large-v3 (最新)</option>
+          <option value="distil-small.en">distil-small.en (推荐)</option>
+          <option value="distil-medium.en">distil-medium.en</option>
+        `;
+        // Default to distil-small.en for English
+        modelSelect.value = language === 'en' ? 'distil-small.en' : 'small';
+      }
+      
+      // Try to restore previous selection if still available
+      const options = Array.from(modelSelect.options).map(opt => opt.value);
+      if (options.includes(currentValue)) {
+        modelSelect.value = currentValue;
+      }
+    }
+
+    window.addEventListener('beforeunload', () => {
+      cleanupMediaResources();
+      if (socket && socket.connected) {
+        socket.emit('stop_transcription', {});
+        socket.disconnect();
+      }
+    });
+
+    window.deleteSubtitle = deleteSubtitle;
+    window.updateModelOptions = updateModelOptions;
+  </script>
+</body>
+</html>

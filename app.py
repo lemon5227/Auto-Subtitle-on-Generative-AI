@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file
+from flask_socketio import SocketIO, emit
 from urllib.parse import unquote
 import subprocess
 import shutil as _shutil
@@ -8,17 +9,30 @@ import os
 import time
 import shutil
 import torch
+import numpy as np
+import threading
+import queue
 from transformers import pipeline
 from huggingface_hub import snapshot_download
 from threading import Thread, Lock
 import shlex
 import glob
 import uuid
+import base64
 # Try to import python API of yt-dlp; if not available we'll fall back to system binary at runtime
 try:
     import yt_dlp as ytdlp_api
 except Exception:
     ytdlp_api = None
+
+# Traditional to Simplified Chinese conversion
+try:
+    import opencc
+    converter = opencc.OpenCC('t2s')  # Traditional to Simplified
+    OPENCC_AVAILABLE = True
+except Exception:
+    converter = None
+    OPENCC_AVAILABLE = False
 
 # Optional faster-whisper support
 try:
@@ -28,12 +42,52 @@ except Exception:
     FasterWhisperModel = None
     FASTER_AVAILABLE = False
 
+# Optional distil-whisper support
+try:
+    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+    DISTIL_AVAILABLE = True
+except Exception:
+    AutoModelForSpeechSeq2Seq = None
+    AutoProcessor = None
+    DISTIL_AVAILABLE = False
+
+# Optional SenseVoice support
+try:
+    from transformers import AutoModel, AutoTokenizer
+    # Also try FunASR if available for better SenseVoice support
+    try:
+        from funasr import AutoModel as FunASRAutoModel
+        FUNASR_AVAILABLE = True
+    except Exception:
+        FUNASR_AVAILABLE = False
+    SENSEVOICE_AVAILABLE = True
+except Exception:
+    SENSEVOICE_AVAILABLE = False
+    FUNASR_AVAILABLE = False
+
 app = Flask(__name__, static_folder='./save')
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Global variables for real-time transcription
+realtime_models = {}
+realtime_audio_queues = {}
+realtime_threads = {}
+realtime_locks = {}
 
 # Startup checks: ensure ffmpeg is available and warn/exit if not
-if _shutil.which('ffmpeg') is None:
-    print("ERROR: 'ffmpeg' not found in PATH. Please install ffmpeg (apt/brew/conda) before running the server.")
-    sys.exit(1)
+def check_ffmpeg():
+    """Check if ffmpeg is available and provide platform-specific installation instructions"""
+    if _shutil.which('ffmpeg') is None:
+        print("ERROR: 'ffmpeg' not found in PATH.")
+        print("\n请根据您的系统安装 ffmpeg:")
+        print("  Ubuntu/Debian: sudo apt install ffmpeg")
+        print("  macOS (Homebrew): brew install ffmpeg")
+        print("  macOS (MacPorts): sudo port install ffmpeg")
+        print("  Conda: conda install ffmpeg")
+        print("  Windows: 下载从 https://ffmpeg.org/ 并添加到 PATH")
+        sys.exit(1)
+
+check_ffmpeg()
 
 # --- Model Configuration ---
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large"]
@@ -49,8 +103,17 @@ SUPPORTED_TRANSLATION_PAIRS = [
 # In-memory cache for loaded translation pipelines
 translation_pipelines = {}
 
-# Device selection for model inference
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+# Device selection for model inference - improved Mac support
+def get_device():
+    """Get the best available device for inference"""
+    if torch.cuda.is_available():
+        return 'cuda'
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        return 'mps'  # Apple Silicon Mac GPU support
+    else:
+        return 'cpu'
+
+DEVICE = get_device()
 print(f"Using device for inference: {DEVICE}")
 
 # Track download status in-memory to avoid reporting Ready before download completes
@@ -148,11 +211,506 @@ def download_model_in_background(model_type, model_key):
             download_status[key] = f'Error: {e}'
         print(f"Download failed for {model_type} model: {model_key}, error: {e}")
 
+# --- Real-time Transcription Functions ---
+
+def get_realtime_model(model_name, language='zh'):
+    """Get or load a real-time transcription model"""
+    key = f"realtime_{model_name}_{language}"
+    if key not in realtime_models:
+        try:
+            print(f"Loading real-time model: {model_name} for language: {language}")
+            if model_name == 'sensevoice':
+                # Use SenseVoice for Chinese
+                if SENSEVOICE_AVAILABLE and language == 'zh':
+                    device = get_device()
+                    model_id = "FunAudioLLM/SenseVoiceSmall"
+                    model_loaded = False
+                    
+                    # Debug FunASR availability
+                    print(f"FUNASR_AVAILABLE: {FUNASR_AVAILABLE}")
+                    
+                    # Try different SenseVoice model identifiers for FunASR
+                    if FUNASR_AVAILABLE:
+                        sensevoice_models = [
+                            "iic/SenseVoiceSmall",  # Try original
+                            "damo/speech_sensevoice_asr_nat-zh_en-16k-common-vocab8404",  # Full ModelScope name
+                            "damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",  # Paraformer as backup
+                        ]
+                        
+                        for sv_model in sensevoice_models:
+                            try:
+                                print(f"Loading SenseVoice with FunASR: {sv_model}")
+                                realtime_models[key] = FunASRAutoModel(
+                                    model=sv_model,
+                                    device=device,
+                                    disable_update=True,
+                                    hub="ms"  # Force ModelScope hub
+                                )
+                                realtime_models[f"{key}_type"] = "funasr"
+                                print(f"SenseVoice loaded successfully with FunASR: {sv_model}")
+                                model_loaded = True
+                                break
+                            except Exception as e:
+                                print(f"FunASR loading failed for {sv_model}: {e}")
+                                continue
+                    else:
+                        print("FunASR not available, skipping FunASR loading attempt")
+                    
+                    # Fallback to transformers
+                    if not model_loaded:
+                        try:
+                            print(f"Loading SenseVoice with transformers: {model_id}")
+                            realtime_models[key] = AutoModel.from_pretrained(
+                                model_id, 
+                                trust_remote_code=True, 
+                                torch_dtype=torch.float32,
+                                device_map=device
+                            )
+                            realtime_models[f"{key}_type"] = "transformers"
+                            print(f"SenseVoice loaded successfully with transformers: {model_id}")
+                            model_loaded = True
+                        except Exception as e:
+                            print(f"Transformers loading failed: {e}")
+                    
+                    if not model_loaded:
+                        print("All SenseVoice model paths failed, falling back to Whisper")
+                        # Fallback to whisper small for Chinese
+                        realtime_models[key] = whisper.load_model("small")
+                        try:
+                            realtime_models[key].to(DEVICE)
+                        except Exception:
+                            pass
+                        print(f"Fallback to Whisper small for Chinese: {key}")
+                else:
+                    raise Exception("SenseVoice only available for Chinese language")
+            elif model_name == 'large-v3-turbo':
+                # Use Whisper Large-v3 Turbo with optimized pipeline
+                if DISTIL_AVAILABLE:  # We use the same transformers library
+                    device = get_device()
+                    # 使用 float16 for CUDA/MPS，float32 for CPU
+                    torch_dtype = torch.float16 if device in ['cuda', 'mps'] else torch.float32
+                    
+                    print(f"Loading Whisper Large-v3 Turbo with chunked algorithm optimization...")
+                    from transformers import pipeline
+                    
+                    # Create pipeline with chunked algorithm optimization
+                    pipe_kwargs = {
+                        "model": "openai/whisper-large-v3-turbo",
+                        "dtype": torch_dtype,  # 使用 dtype 替代 torch_dtype
+                        "device": device,
+                        "chunk_length_s": 30,  # 30秒分块，官方推荐
+                        "batch_size": 8 if device in ['cuda', 'mps'] else 2,  # 批处理优化
+                        "ignore_warning": True,  # 忽略分块实验性功能的警告
+                    }
+                    
+                    # 不使用 flash attention，避免依赖问题
+                    # 如果需要更快的速度，可以手动安装 flash-attn 包
+                    
+                    try:
+                        realtime_models[key] = pipeline("automatic-speech-recognition", **pipe_kwargs)
+                        realtime_models[f"{key}_type"] = "turbo_pipeline"
+                        print(f"Whisper Large-v3 Turbo loaded successfully with chunked algorithm")
+                    except Exception as e:
+                        print(f"Failed to load Whisper Large-v3 Turbo: {e}")
+                        raise Exception(f"Whisper Large-v3 Turbo not available: {e}")
+                else:
+                    raise Exception("Transformers not available for Whisper Large-v3 Turbo")
+            elif model_name.startswith('distil-'):
+                # Use distil-whisper with consistent dtype
+                if DISTIL_AVAILABLE:
+                    device = get_device()
+                    # Force float32 to avoid dtype mismatch (MPS doesn't support float16 for some models)
+                    torch_dtype = torch.float32
+                    model_id = f"distil-whisper/{model_name}"
+                    try:
+                        realtime_models[key] = AutoModelForSpeechSeq2Seq.from_pretrained(
+                            model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+                        )
+                        realtime_models[key].to(device)
+                        # Also load processor
+                        realtime_models[f"{key}_processor"] = AutoProcessor.from_pretrained(model_id)
+                    except Exception as e:
+                        print(f"Failed to load distil-whisper model {model_id}: {e}")
+                        raise Exception(f"Distil-Whisper model {model_id} not available. Try distil-small.en or use standard Whisper models.")
+                else:
+                    raise Exception("Transformers not available for Distil-Whisper")
+            elif FASTER_AVAILABLE:
+                # Use faster-whisper for real-time transcription (CUDA only)
+                device = "cuda" if torch.cuda.is_available() else "cpu"  # faster-whisper 不支持 MPS
+                compute_type = "float16" if device == "cuda" else "int8"
+                realtime_models[key] = FasterWhisperModel(
+                    model_name,
+                    device=device,
+                    compute_type=compute_type
+                    # Removed language parameter to let it auto-detect and avoid Traditional Chinese
+                )
+            else:
+                # Fallback to regular whisper
+                realtime_models[key] = whisper.load_model(model_name)
+                try:
+                    realtime_models[key].to(DEVICE)
+                except Exception:
+                    pass
+            print(f"Real-time model loaded: {key}")
+        except Exception as e:
+            print(f"Failed to load real-time model {key}: {e}")
+            return None
+    return realtime_models[key]
+
+
+def resample_audio(audio_array: np.ndarray, src_rate: int, target_rate: int = 16000) -> np.ndarray:
+    """Resample a mono float32 audio array to the target sample rate."""
+    if audio_array.size == 0:
+        return audio_array.astype(np.float32, copy=False)
+
+    if src_rate == target_rate:
+        return audio_array.astype(np.float32, copy=False)
+
+    src_rate = float(src_rate)
+    target_rate = float(target_rate)
+
+    target_length = max(1, int(round(audio_array.shape[0] * target_rate / src_rate)))
+    if target_length == audio_array.shape[0]:
+        return audio_array.astype(np.float32, copy=False)
+
+    x_old = np.linspace(0.0, 1.0, num=audio_array.shape[0], endpoint=False)
+    x_new = np.linspace(0.0, 1.0, num=target_length, endpoint=False)
+    resampled = np.interp(x_new, x_old, audio_array.astype(np.float32, copy=False))
+    return resampled.astype(np.float32, copy=False)
+
+def process_realtime_audio(sid, audio_queue, model, language, model_name):
+    """Process audio chunks for real-time transcription"""
+    buffer = []
+    buffer_duration = 0
+    min_chunk_duration = 3.0  # Process every 3 seconds of audio
+
+    try:
+        while True:
+            # Get audio chunk from queue
+            try:
+                audio_chunk = audio_queue.get(timeout=1.0)
+                if audio_chunk is None:  # Stop signal
+                    break
+            except queue.Empty:
+                continue
+
+            # Normalize chunk into float32 audio data and sample rate metadata
+            if isinstance(audio_chunk, np.ndarray):
+                audio_data = audio_chunk.astype(np.float32, copy=False)
+                sample_rate = 16000
+            elif isinstance(audio_chunk, tuple) and len(audio_chunk) == 2:
+                raw_audio, sample_rate = audio_chunk
+                audio_data = np.frombuffer(raw_audio, dtype=np.int16).astype(np.float32) / 32768.0
+            else:
+                sample_rate = 16000
+                audio_data = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # Add to buffer
+            buffer.extend(audio_data.tolist())
+            buffer_duration += len(audio_data) / float(sample_rate or 16000.0)
+
+            # Process when we have enough audio
+            if buffer_duration >= min_chunk_duration:
+                try:
+                    buffer_array = np.array(buffer, dtype=np.float32)
+                    # Transcribe the buffered audio
+                    if model_name == 'sensevoice':
+                        # Use SenseVoice or fallback to Whisper
+                        try:
+                            model_type = realtime_models.get(f"realtime_{model_name}_{language}_type", "unknown")
+                            
+                            if model_type == "funasr":
+                                # FunASR SenseVoice
+                                with torch.no_grad():
+                                    result = model.generate(
+                                        input=buffer_array,
+                                        cache={},
+                                        language="auto",
+                                        use_itn=True
+                                    )
+                                # Extract text from FunASR result
+                                if isinstance(result, list) and len(result) > 0:
+                                    transcription = result[0].get("text", "") if isinstance(result[0], dict) else str(result[0])
+                                else:
+                                    transcription = str(result) if result else ""
+                                    
+                            elif model_type == "transformers" and hasattr(model, 'inference'):
+                                # Transformers SenseVoice
+                                with torch.no_grad():
+                                    result = model.inference(
+                                        data_in=buffer_array,
+                                        language="auto",
+                                        use_itn=True,
+                                    )
+                                transcription = result[0][0]['text'] if result and len(result) > 0 and len(result[0]) > 0 else ""
+                            else:
+                                # Whisper fallback
+                                result = model.transcribe(buffer_array, language=language)
+                                transcription = result["text"]
+                        except Exception as e:
+                            print(f"SenseVoice inference error: {e}")
+                            transcription = ""
+                    elif model_name == 'large-v3-turbo':
+                        # Use Whisper Large-v3 Turbo with chunked algorithm
+                        model_type = realtime_models.get(f"realtime_{model_name}_{language}_type", "unknown")
+                        if model_type == "turbo_pipeline":
+                            try:
+                                # 使用分块算法进行快速转录
+                                result = model(
+                                    buffer_array,
+                                    chunk_length_s=30,  # 30秒分块
+                                    batch_size=8 if get_device() in ['cuda', 'mps'] else 2,
+                                    return_timestamps=False  # 实时转录不需要时间戳
+                                )
+                                transcription = result.get("text", "") if isinstance(result, dict) else ""
+                            except Exception as e:
+                                print(f"Turbo pipeline error: {e}")
+                                transcription = ""
+                        else:
+                            transcription = ""
+                    elif model_name.startswith('distil-'):
+                        # Use distil-whisper
+                        processor = realtime_models.get(f"realtime_{model_name}_{language}_processor")
+                        if processor:
+                            # Ensure consistent dtype for distil-whisper
+                            inputs = processor(buffer_array, sampling_rate=16000, return_tensors="pt")
+                            # Convert inputs to float32 to match model dtype
+                            inputs = {k: v.to(model.device).float() if v.dtype == torch.float16 else v.to(model.device) for k, v in inputs.items()}
+                            with torch.no_grad():
+                                # Simple generation without custom config
+                                generated_ids = model.generate(**inputs, max_length=448)
+                            transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+                        else:
+                            transcription = ""
+                    elif FASTER_AVAILABLE and isinstance(model, FasterWhisperModel):
+                        segments, _ = model.transcribe(
+                            buffer_array,
+                            language=language,
+                            beam_size=5,
+                            vad_filter=True,
+                            vad_parameters=dict(threshold=0.5, min_speech_duration_ms=250)
+                        )
+                        transcription = ""
+                        for segment in segments:
+                            transcription += segment.text + " "
+                    else:
+                        # Regular whisper
+                        result = model.transcribe(buffer_array, language=language)
+                        transcription = result["text"]
+
+                    if transcription.strip():
+                        # Convert traditional Chinese to simplified if available
+                        final_text = transcription.strip()
+                        if OPENCC_AVAILABLE and language == 'zh':
+                            try:
+                                final_text = converter.convert(final_text)
+                            except Exception as e:
+                                print(f"OpenCC conversion failed: {e}")
+                        
+                        # Send transcription to client
+                        socketio.emit('transcription', {
+                            'text': final_text,
+                            'timestamp': int(time.time() * 1000)
+                        }, room=sid)
+
+                    # Clear buffer
+                    buffer = []
+                    buffer_duration = 0
+
+                except Exception as e:
+                    print(f"Transcription error for {sid}: {e}")
+                    socketio.emit('error', {'message': f'Transcription failed: {str(e)}'}, room=sid)
+
+    except Exception as e:
+        print(f"Real-time processing error for {sid}: {e}")
+    finally:
+        # Cleanup
+        lock = realtime_locks.get(sid)
+        if lock:
+            with lock:
+                realtime_audio_queues.pop(sid, None)
+                realtime_threads.pop(sid, None)
+        else:
+            realtime_audio_queues.pop(sid, None)
+            realtime_threads.pop(sid, None)
+
+        realtime_locks.pop(sid, None)
+        socketio.emit('transcription_stopped', {'status': 'stopped'}, room=sid)
+
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    print(f"Client connected: {request.sid}")
+    socketio.emit('connected', {'status': 'success'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected: {request.sid}")
+    sid = request.sid
+
+    # Stop real-time transcription for this client
+    lock = realtime_locks.get(sid)
+    if lock is None:
+        lock = threading.Lock()
+        realtime_locks[sid] = lock
+
+    with lock:
+        if sid in realtime_audio_queues:
+            try:
+                realtime_audio_queues[sid].put(None)
+            except Exception:
+                pass
+        if sid in realtime_threads:
+            realtime_threads[sid].join(timeout=2.0)
+            realtime_threads.pop(sid, None)
+        realtime_audio_queues.pop(sid, None)
+
+    realtime_locks.pop(sid, None)
+
+@socketio.on('start_transcription')
+def handle_start_transcription(data):
+    sid = request.sid
+    model_name = data.get('model', 'base')
+    language = data.get('language', 'zh')
+
+    print(f"Starting real-time transcription for {sid}: model={model_name}, language={language}")
+
+    try:
+        # Get or load the model
+        model = get_realtime_model(model_name, language)
+        if not model:
+            message = 'Failed to load transcription model'
+            socketio.emit('error', {'message': message}, room=sid)
+            return {'status': 'error', 'message': message}
+
+        # Initialize audio queue and processing thread
+        if sid not in realtime_locks:
+            realtime_locks[sid] = threading.Lock()
+        
+        with realtime_locks[sid]:
+            # Clean up existing queue/thread if present
+            if sid in realtime_audio_queues:
+                try:
+                    realtime_audio_queues[sid].put_nowait(None)
+                except Exception:
+                    pass
+            if sid in realtime_threads:
+                realtime_threads[sid].join(timeout=3.0)  # Increased timeout
+                realtime_threads.pop(sid, None)
+
+            realtime_audio_queues[sid] = queue.Queue()
+            worker = threading.Thread(
+                target=process_realtime_audio,
+                args=(sid, realtime_audio_queues[sid], model, language, model_name),
+                daemon=True
+            )
+            realtime_threads[sid] = worker
+            worker.start()
+
+        socketio.emit('transcription_started', {'status': 'success'}, room=sid)
+        return {'status': 'success', 'message': 'Transcription started successfully.'}
+
+    except Exception as e:
+        print(f"Failed to start transcription for {sid}: {e}")
+        message = f'Failed to start transcription: {str(e)}'
+        socketio.emit('error', {'message': message}, room=sid)
+        return {'status': 'error', 'message': message}
+
+@socketio.on('audio_chunk')
+def handle_audio_chunk(data):
+    sid = request.sid
+    chunk = data.get('audio')
+    sample_rate = data.get('sampleRate', 16000)
+
+    if not chunk:
+        return {'status': 'error', 'message': 'No audio chunk provided'}
+
+    if sid not in realtime_audio_queues:
+        message = 'Transcription not started for this session'
+        socketio.emit('error', {'message': message}, room=sid)
+        return {'status': 'error', 'message': message}
+
+    try:
+        # Decode the base64-encoded PCM chunk and convert to float32
+        audio_bytes = base64.b64decode(chunk)
+        int_samples = np.frombuffer(audio_bytes, dtype=np.int16)
+        float_samples = int_samples.astype(np.float32) / 32768.0
+
+        if not sample_rate or sample_rate <= 0:
+            sample_rate = 16000
+
+        processed_chunk = resample_audio(float_samples, int(sample_rate), 16000)
+
+        lock = realtime_locks.get(sid)
+        if not lock:
+            lock = threading.Lock()
+            realtime_locks[sid] = lock
+
+        with lock:
+            audio_queue = realtime_audio_queues.get(sid)
+            if not audio_queue:
+                message = 'Audio queue unavailable for this session'
+                socketio.emit('error', {'message': message}, room=sid)
+                return {'status': 'error', 'message': message}
+
+            audio_queue.put(processed_chunk)
+
+        socketio.emit('chunk_received', {'status': 'success'}, room=sid)
+        return {'status': 'success'}
+    except Exception as e:
+        message = f'Failed to process audio chunk: {str(e)}'
+        print(f"Error processing audio chunk for {sid}: {e}")
+        socketio.emit('error', {'message': message}, room=sid)
+        return {'status': 'error', 'message': message}
+
+@socketio.on('stop_transcription')
+def handle_stop_transcription(data=None):
+    sid = request.sid
+    print(f"Stopping real-time transcription for {sid}")
+    response = {'status': 'success', 'message': 'Transcription stopping'}
+
+    try:
+        lock = realtime_locks.setdefault(sid, threading.Lock())
+
+        with lock:
+            audio_queue = realtime_audio_queues.get(sid)
+            if audio_queue:
+                try:
+                    audio_queue.put_nowait(None)
+                except Exception:
+                    audio_queue.put(None)
+
+            worker = realtime_threads.get(sid)
+
+        if worker:
+            worker.join(timeout=2.0)
+            realtime_threads.pop(sid, None)
+
+        socketio.emit('transcription_stopped', {'status': 'success'}, room=sid)
+
+    except Exception as e:
+        message = f'Failed to stop transcription: {str(e)}'
+        print(message)
+        socketio.emit('error', {'message': message}, room=sid)
+        response = {'status': 'error', 'message': message}
+
+    return response
+
 
 # Route to serve the new frontend
 @app.route('/')
 def new_index():
     return send_file(os.path.join(os.getcwd(), 'app.html'))
+
+# Route to serve app.html directly
+@app.route('/app.html')
+def app_page():
+    return send_file(os.path.join(os.getcwd(), 'app.html'))
+
+# Route to serve the real-time transcription page
+@app.route('/realtime.html')
+def realtime_page():
+    return send_file(os.path.join(os.getcwd(), 'realtime.html'))
 
 # Route to get the list of available models
 @app.route('/models')
@@ -664,4 +1222,5 @@ def format_time(seconds):
     return f"{h:02}:{m:02}:{s:02}.{ms:03}"
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    print("Starting AI Subtitle Generator with real-time transcription support...")
+    socketio.run(app, debug=True, port=5001, host='0.0.0.0')
