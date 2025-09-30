@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-跨平台启动脚本 - Auto Subtitle Generator
-支持 Windows, macOS, Linux
+智能跨平台启动脚本 - Auto Subtitle Generator
+✨ 自动检测环境、安装依赖、配置加速
+🚀 支持 Linux (丝滑一键部署) / macOS / Windows
 """
 
 import sys
 import platform
 import subprocess
 import shutil
-import torch
+import os
+import json
+from pathlib import Path
 
 def check_system():
     """检测系统信息"""
@@ -22,27 +25,101 @@ def check_system():
     
     return system, machine
 
-def check_dependencies():
-    """检查依赖项"""
-    print("\n📦 检查依赖项...")
+def auto_install_system_deps():
+    """自动安装系统依赖（Linux平台）"""
+    system, _ = check_system()
     
-    # 检查 ffmpeg
-    if shutil.which('ffmpeg'):
-        print("✅ ffmpeg 已安装")
-    else:
-        print("❌ ffmpeg 未找到")
-        system, _ = check_system()
-        if system == "Darwin":  # macOS
-            print("   安装命令: brew install ffmpeg")
-        elif system == "Linux":
-            print("   安装命令: sudo apt install ffmpeg  # Ubuntu/Debian")
-            print("              sudo yum install ffmpeg  # CentOS/RHEL")
-        elif system == "Windows":
-            print("   请从 https://ffmpeg.org/ 下载并添加到 PATH")
+    if system != "Linux":
+        return True
+    
+    print("\n� 检测Linux发行版并安装系统依赖...")
+    
+    # 检测Linux发行版
+    try:
+        with open('/etc/os-release', 'r') as f:
+            os_info = f.read()
+        
+        if 'Ubuntu' in os_info or 'Debian' in os_info:
+            distro = 'ubuntu'
+        elif 'CentOS' in os_info or 'Red Hat' in os_info or 'rhel' in os_info:
+            distro = 'centos'
+        elif 'Fedora' in os_info:
+            distro = 'fedora'
+        else:
+            distro = 'unknown'
+            
+        print(f"🐧 检测到发行版: {distro}")
+        
+        # 自动安装ffmpeg
+        if not shutil.which('ffmpeg'):
+            print("📦 自动安装 ffmpeg...")
+            if distro == 'ubuntu':
+                result = subprocess.run(['sudo', 'apt', 'update'], capture_output=True)
+                if result.returncode == 0:
+                    subprocess.run(['sudo', 'apt', 'install', '-y', 'ffmpeg'], check=True)
+                    print("✅ ffmpeg 安装完成")
+            elif distro == 'fedora':
+                subprocess.run(['sudo', 'dnf', 'install', '-y', 'ffmpeg'], check=True)
+                print("✅ ffmpeg 安装完成")
+            elif distro == 'centos':
+                subprocess.run(['sudo', 'yum', 'install', '-y', 'epel-release'], check=True)
+                subprocess.run(['sudo', 'yum', 'install', '-y', 'ffmpeg'], check=True)
+                print("✅ ffmpeg 安装完成")
+        else:
+            print("✅ ffmpeg 已安装")
+            
+    except Exception as e:
+        print(f"⚠️  自动安装失败: {e}")
+        print("📝 请手动安装 ffmpeg")
+        return False
+        
+    return True
+
+def setup_python_env():
+    """设置Python环境"""
+    print("\n🐍 配置Python环境...")
+    
+    # 检查是否在虚拟环境中
+    in_venv = sys.prefix != sys.base_prefix or hasattr(sys, 'real_prefix')
+    
+    if not in_venv:
+        print("💡 建议创建虚拟环境，是否自动创建? (y/n): ", end="")
+        try:
+            choice = input().lower().strip()
+            if choice in ['y', 'yes', '']:
+                print("📦 创建虚拟环境...")
+                env_path = Path("venv")
+                if not env_path.exists():
+                    subprocess.run([sys.executable, '-m', 'venv', 'venv'], check=True)
+                    print("✅ 虚拟环境创建完成")
+                    
+                # 激活虚拟环境的说明
+                system, _ = check_system()
+                if system == "Windows":
+                    activate_cmd = ".\\venv\\Scripts\\activate"
+                else:
+                    activate_cmd = "source venv/bin/activate"
+                    
+                print(f"🔔 请运行以下命令激活环境:")
+                print(f"   {activate_cmd}")
+                print("   然后重新运行: python start.py")
+                return False
+        except KeyboardInterrupt:
+            print("\n⏭️  跳过虚拟环境创建")
+    
+    return True
+
+def check_and_install_dependencies():
+    """检查并自动安装依赖项"""
+    print("\n📦 检查Python依赖项...")
+    
+    # 检查requirements.txt
+    if not Path("requirements.txt").exists():
+        print("❌ requirements.txt 未找到")
         return False
     
-    # 检查 PyTorch
     try:
+        # 检查torch
         import torch
         print(f"✅ PyTorch {torch.__version__} 已安装")
         
@@ -55,37 +132,101 @@ def check_dependencies():
             print("⚠️  使用 CPU 模式")
             
     except ImportError:
-        print("❌ PyTorch 未安装")
-        print("   安装命令:")
+        print("📥 安装 PyTorch...")
         system, machine = check_system()
+        
+        # 智能选择PyTorch版本
         if system == "Darwin" and machine == "arm64":  # Apple Silicon
-            print("   pip install torch torchvision torchaudio")
+            subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch', 'torchvision', 'torchaudio'], check=True)
+        elif system == "Linux":
+            # 检测CUDA
+            if shutil.which('nvidia-smi'):
+                print("🎮 检测到NVIDIA GPU，安装CUDA版本...")
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu118'], check=True)
+            else:
+                print("💻 安装CPU版本...")
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch', 'torchvision', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cpu'], check=True)
         else:
-            print("   访问 https://pytorch.org/get-started/locally/ 获取安装命令")
-        return False
+            # Windows或其他
+            subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch', 'torchvision', 'torchaudio'], check=True)
+    
+    # 安装其他依赖
+    print("📦 安装应用依赖...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'], check=True)
+    print("✅ 所有依赖安装完成")
     
     return True
 
+def check_system_deps():
+    """检查系统依赖"""
+    print("\n🔍 检查系统依赖...")
+    
+    # 检查 ffmpeg
+    if shutil.which('ffmpeg'):
+        print("✅ ffmpeg 已安装")
+        return True
+    else:
+        print("❌ ffmpeg 未找到")
+        system, _ = check_system()
+        
+        # Linux自动安装
+        if system == "Linux":
+            print("🚀 尝试自动安装...")
+            return auto_install_system_deps()
+        elif system == "Darwin":  # macOS
+            print("📝 安装命令: brew install ffmpeg")
+        elif system == "Windows":
+            print("📝 请从 https://ffmpeg.org/ 下载并添加到 PATH")
+        
+        return False
+
 def main():
-    """主函数"""
-    print("🎤 Auto Subtitle Generator - 跨平台启动器")
-    print("=" * 50)
+    """智能启动主函数"""
+    print("🎤 Auto Subtitle Generator - 智能启动器")
+    print("🚀 支持 Linux 丝滑一键部署 / macOS Apple Silicon / Windows")
+    print("=" * 60)
     
     system, machine = check_system()
     
-    if not check_dependencies():
-        print("\n❌ 依赖检查失败，请先安装缺少的依赖")
+    # 1. 检查系统依赖
+    if not check_system_deps():
+        print("\n❌ 系统依赖检查失败")
+        if system != "Linux":
+            print("📝 请手动安装依赖后重试")
+            sys.exit(1)
+    
+    # 2. 设置Python环境
+    if not setup_python_env():
+        sys.exit(0)  # 需要激活虚拟环境
+    
+    # 3. 安装Python依赖
+    try:
+        if not check_and_install_dependencies():
+            print("\n❌ Python依赖安装失败")
+            sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ 依赖安装错误: {e}")
         sys.exit(1)
     
-    print("\n🚀 启动应用...")
+    # 4. 启动应用
+    print("\n🚀 启动Web应用...")
+    print("🌐 访问地址:")
+    print("   📺 实时转录: http://127.0.0.1:5001/realtime.html")
+    print("   🎬 文件处理: http://127.0.0.1:5001/app.html")
+    print("\n按 Ctrl+C 停止服务")
     
     try:
         # 启动 Flask 应用
         subprocess.run([sys.executable, "app.py"], check=True)
     except KeyboardInterrupt:
-        print("\n👋 应用已停止")
+        print("\n👋 服务已停止，谢谢使用!")
+    except FileNotFoundError:
+        print("\n❌ app.py 文件未找到")
+        print("📁 请确保在项目根目录运行此脚本")
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ 启动失败: {e}")
+        print("🔧 请检查端口5001是否被占用或查看错误日志")
         sys.exit(1)
 
 if __name__ == "__main__":

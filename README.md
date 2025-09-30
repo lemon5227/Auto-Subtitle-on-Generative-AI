@@ -1,5 +1,18 @@
 # Auto-Subtitle-on-Generative-AI
 
+<div align="center">
+
+## 🌐 Choose Your Language | 选择语言
+
+| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux |
+|:---:|:---:|:---:|:---:|
+| [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) |
+| 完整中文说明 | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 |
+
+---
+
+</div>
+
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8%2B-blue.svg" alt="Python Version">
   <img src="https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg" alt="PyTorch">
@@ -10,7 +23,7 @@
 <p align="center">
   <strong>🎤 智能语音字幕生成器</strong><br>
   基于 Whisper Large-v3 Turbo 的实时转录和字幕生成系统
-</p>
+</p></p>
 
 ## ✨ 主要功能
 
@@ -37,20 +50,39 @@
 
 ## 🚀 快速开始
 
-### 一键安装（推荐）
+### 🎯 一键安装（推荐 - 适用于所有平台）
 ```bash
-# 克隆仓库
+# 1. 克隆仓库
 git clone https://github.com/lemon5227/Auto-Subtitle-on-Generative-AI.git
 cd Auto-Subtitle-on-Generative-AI
 
-# 使用跨平台启动器（自动检查依赖）
+# 2. 使用智能启动器（自动检查依赖、配置环境）
 python start.py
 ```
 
-### 平台特定安装
-- 🍎 **macOS 用户**: [详细配置指南](#-macos-用户快速配置指南)
-- 🐧 **Linux 用户**: [参考下方通用安装步骤](#quick-start)  
-- 🪟 **Windows 用户**: [参考下方通用安装步骤](#quick-start)
+**智能启动器功能**：
+- ✅ 自动检测操作系统和Python环境
+- ✅ 智能安装缺失的系统依赖（ffmpeg等）
+- ✅ 创建独立的虚拟环境避免冲突
+- ✅ 检测GPU硬件并配置最优加速
+- ✅ 自动下载必需模型文件
+- ✅ 一键启动Web服务
+
+### 🚀 平台特定丝滑部署
+
+#### 🐧 Linux 超级丝滑一键安装
+```bash
+# 只需一条命令，全自动部署！
+curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generative-AI/main/install-linux.sh | bash
+```
+
+| 平台 | 部署方案 | 特色优化 | 安装时间 |
+|------|----------|----------|----------|
+| 🐧 **Linux** | [🚀 一键脚本](README.linux.md) | 检测发行版 • 自动装依赖 • GPU加速 | ~5分钟 |
+| 🍎 **macOS** | [🍎 Apple优化](README.macOS.md) | Apple Silicon • MPS加速 • Homebrew | ~8分钟 |
+| 🪟 **Windows** | [参考通用步骤](#🚀-快速开始) | CUDA支持 • 虚拟环境 | ~10分钟 |
+
+> 💡 **最佳体验**: Linux用户使用一键脚本，macOS用户使用专用指南，享受丝滑部署！
 
 ## 📱 功能演示
 
@@ -62,14 +94,51 @@ python start.py
 - **访问地址**: http://127.0.0.1:5001/app.html
 - **功能**: 视频上传、批量转录、翻译、模型管理
 
-## 必要依赖
+## 📋 系统依赖
 
-系统依赖：
-- `ffmpeg`（音频提取与转码）
+### 必需组件
+- **ffmpeg**: 音频视频处理核心
+- **Python 3.8+**: 推荐 3.11 版本
+- **Git**: 代码克隆和版本管理
 
-Python 依赖（见 `requirements.txt`）：
-- Flask
-- openai-whisper
+### 快速安装系统依赖
+
+**Ubuntu/Debian Linux:**
+```bash
+sudo apt update && sudo apt install -y ffmpeg python3 python3-pip git
+```
+
+**CentOS/RHEL/Fedora Linux:**
+```bash
+# CentOS/RHEL
+sudo yum install -y epel-release && sudo yum install -y ffmpeg python3 python3-pip git
+
+# Fedora  
+sudo dnf install -y ffmpeg python3 python3-pip git
+```
+
+**macOS:**
+```bash
+brew install ffmpeg python@3.11 git
+```
+
+**Windows:**
+```bash
+# 使用 Chocolatey
+choco install ffmpeg python git
+
+# 或下载安装包
+# Python: https://python.org/downloads
+# FFmpeg: https://ffmpeg.org/download.html
+# Git: https://git-scm.com/downloads
+```
+
+### Python 依赖（自动安装）
+主要组件（详见 `requirements.txt`）：
+- **Flask**: Web 服务框架
+- **openai-whisper**: 语音识别核心
+- **torch**: PyTorch 深度学习框架  
+- **transformers**: 翻译模型支持
 
 ## 🍎 macOS 用户快速配置指南
 

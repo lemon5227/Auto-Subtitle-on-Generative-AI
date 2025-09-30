@@ -1,6 +1,31 @@
-# Auto-Subtitle-on-Generative-AI — English
+# Auto-Subtitle-on-Generative-AI
 
-Short description
+<div align="center">
+
+## 🌐 Choose Your Language | 选择语言
+
+| 🇺🇸 English | 🇨🇳 中文 | 🍎 macOS | 🐧 Linux |
+|:---:|:---:|:---:|:---:|
+| **📖 English Guide** | [📖 中文文档](README.zh-CN.md) | [🍎 macOS Guide](README.macOS.md) | [🐧 Linux Guide](README.linux.md) |
+| **Current Document** | Complete Chinese Guide | Apple Silicon Optimized | One-Click Deployment |
+
+---
+
+</div>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-blue.svg" alt="Python Version">
+  <img src="https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg" alt="PyTorch">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+</p>
+
+<p align="center">
+  <strong>🎤 AI Intelligent Subtitle Generator</strong><br>
+  Real-time transcription and subtitle generation system based on Whisper Large-v3 Turbo
+</p>
+
+## 📖 Project Overview
 
 This is a demo project for local subtitle generation and translation. It combines speech recognition (Whisper-style models) with translation models (from Hugging Face). The app supports extracting audio from local files or remote videos (e.g., YouTube), producing VTT subtitles, and optionally translating those subtitles into a target language. A lightweight web UI is included for uploads, downloads, model management and subtitle preview.
 

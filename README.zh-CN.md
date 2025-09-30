@@ -1,6 +1,31 @@
-# Auto-Subtitle-on-Generative-AI — 简体中文
+# Auto-Subtitle-on-Generative-AI
 
-简介
+<div align="center">
+
+## 🌐 Choose Your Language | 选择语言
+
+| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux |
+|:---:|:---:|:---:|:---:|
+| **📖 中文文档** | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) |
+| **当前文档** | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 |
+
+---
+
+</div>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-blue.svg" alt="Python Version">
+  <img src="https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg" alt="PyTorch">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+</p>
+
+<p align="center">
+  <strong>🎤 智能语音字幕生成器</strong><br>
+  基于 Whisper Large-v3 Turbo 的实时转录和字幕生成系统
+</p>
+
+## 📖 项目简介
 
 这是一个本地运行的字幕生成与翻译示例项目，结合了语音识别（Whisper 系列模型）和翻译模型（来自 Hugging Face）。该应用支持从本地文件或网络视频（例如 YouTube）提取音频、生成 VTT 字幕，并可将字幕翻译为目标语言。项目包含一个轻量级网页 UI，用于文件上传/下载、模型管理以及字幕预览与下载。
 

@@ -1,6 +1,21 @@
-# macOS 安装指南
+# Auto-Subtitle-on-Generative-AI
 
-本应用已优化支持 macOS，包括 Apple Silicon (M1/M2/M3) Mac。
+<div align="center">
+
+## 🌐 Choose Your Language | 选择语言
+
+| 🍎 macOS | 🇨🇳 中文 | 🇺🇸 English | 🐧 Linux |
+|:---:|:---:|:---:|:---:|
+| **🍎 macOS 指南** | [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🐧 Linux 指南](README.linux.md) |
+| **当前文档** | 完整中文说明 | Full English Guide | 丝滑一键部署 |
+
+---
+
+</div>
+
+# 🍎 macOS 专用安装指南
+
+本应用已全面优化支持 macOS，包括 Apple Silicon (M1/M2/M3/M4) Mac 和 Intel Mac。
 
 ## 系统要求
 
