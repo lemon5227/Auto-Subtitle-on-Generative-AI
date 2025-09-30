@@ -4,10 +4,10 @@
 
 ## 🌐 Choose Your Language | 选择语言
 
-| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux |
-|:---:|:---:|:---:|:---:|
-| [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) |
-| 完整中文说明 | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 |
+| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux | 🪟 WSL2 |
+|:---:|:---:|:---:|:---:|:---:|
+| [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) | [🔧 WSL2 指南](README.wsl2.md) |
+| 完整中文说明 | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 | Windows 用户推荐 |
 
 ---
 
@@ -76,13 +76,23 @@ python start.py
 curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generative-AI/main/install-linux.sh | bash
 ```
 
+#### 🪟 Windows WSL2 专用部署
+```bash
+# WSL2 环境优化部署
+curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generative-AI/main/install-wsl2.sh | bash
+```
+
 | 平台 | 部署方案 | 特色优化 | 安装时间 |
 |------|----------|----------|----------|
 | 🐧 **Linux** | [🚀 一键脚本](README.linux.md) | 检测发行版 • 自动装依赖 • GPU加速 | ~5分钟 |
+| 🪟 **WSL2** | [🔧 WSL2专用](README.wsl2.md) | GPU支持 • 环境优化 • 兼容性修复 | ~6分钟 |
 | 🍎 **macOS** | [🍎 Apple优化](README.macOS.md) | Apple Silicon • MPS加速 • Homebrew | ~8分钟 |
 | 🪟 **Windows** | [参考通用步骤](#🚀-快速开始) | CUDA支持 • 虚拟环境 | ~10分钟 |
 
-> 💡 **最佳体验**: Linux用户使用一键脚本，macOS用户使用专用指南，享受丝滑部署！
+> 💡 **最佳体验**: 
+> - **Linux** 原生用户: 使用一键脚本，性能最佳
+> - **Windows** 用户: 推荐 WSL2 方案，体验接近原生 Linux
+> - **macOS** 用户: 使用专用指南，Apple Silicon 优化
 
 ## 📱 功能演示
 

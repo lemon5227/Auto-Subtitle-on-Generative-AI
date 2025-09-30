@@ -4,10 +4,10 @@
 
 ## 🌐 Choose Your Language | 选择语言
 
-| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux |
-|:---:|:---:|:---:|:---:|
-| **📖 中文文档** | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) |
-| **当前文档** | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 |
+| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux | 🪟 WSL2 |
+|:---:|:---:|:---:|:---:|:---:|
+| **📖 中文文档** | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) | [🔧 WSL2 指南](README.wsl2.md) |
+| **当前文档** | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 | Windows 用户推荐 |
 
 ---
 

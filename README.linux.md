@@ -1,4 +1,19 @@
-# Linux 快速部署指南
+# Auto-Subtitle-on-Generative-AI
+
+<div align="center">
+
+## 🌐 Choose Your Language | 选择语言
+
+| 🐧 Linux | 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🪟 WSL2 |
+|:---:|:---:|:---:|:---:|:---:|
+| **🐧 Linux 指南** | [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🔧 WSL2 指南](README.wsl2.md) |
+| **当前文档** | 完整中文说明 | Full English Guide | Apple Silicon 优化 | Windows 用户推荐 |
+
+---
+
+</div>
+
+# 🐧 Linux 快速部署指南
 
 本应用已全面优化支持 Linux 平台，包括 Ubuntu、Debian、CentOS、Fedora 等主流发行版。
 
