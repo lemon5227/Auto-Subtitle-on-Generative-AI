@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模型选择测试</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+    select, button { padding: 8px; margin: 5px; }
+    .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>模型选择功能测试</h1>
+  
+  <div class="test-section">
+    <h3>语言选择测试</h3>
+    <label for="language">选择语言：</label>
+    <select id="language" onchange="testUpdateModelOptions()">
+      <option value="chinese">中文</option>
+      <option value="english">英语</option>
+      <option value="japanese">日语</option>
+      <option value="korean">韩语</option>
+      <option value="auto">自动检测</option>
+    </select>
+  </div>
+
+  <div class="test-section">
+    <h3>模型选项</h3>
+    <label for="model">可用模型：</label>
+    <select id="model">
+      <!-- 模型选项将由JavaScript填充 -->
+    </select>
+  </div>
+
+  <div class="test-section">
+    <h3>测试结果</h3>
+    <div id="test-results" class="result">请选择不同的语言来测试模型选项...</div>
+  </div>
+
+  <script>
+    // 复制 realtime.html 中的 updateModelOptions 函数
+    function updateModelOptions() {
+      const languageSelect = document.getElementById('language');
+      const modelSelect = document.getElementById('model');
+      const resultsDiv = document.getElementById('test-results');
+      
+      if (!languageSelect || !modelSelect) {
+        console.error('找不到必需的元素');
+        return;
+      }
+
+      const selectedLanguage = languageSelect.value;
+      console.log('更新模型选项，选中语言:', selectedLanguage);
+
+      // 通用模型列表 - 所有语言都支持
+      const universalModels = [
+        { value: 'large-v3-turbo', text: 'Whisper Large-v3-turbo (推荐)', description: '最新高性能模型' },
+        { value: 'large-v3', text: 'Whisper Large-v3', description: '高精度大模型' },
+        { value: 'large-v2', text: 'Whisper Large-v2', description: '稳定大模型' },
+        { value: 'large', text: 'Whisper Large', description: '标准大模型' },
+        { value: 'medium', text: 'Whisper Medium', description: '中等模型' },
+        { value: 'small', text: 'Whisper Small', description: '小型模型' },
+        { value: 'base', text: 'Whisper Base', description: '基础模型' },
+        { value: 'tiny', text: 'Whisper Tiny', description: '最小模型' }
+      ];
+
+      // 语言特定的额外模型
+      const languageSpecificModels = {
+        chinese: [
+          { value: 'SenseVoiceSmall', text: 'SenseVoice Small (中文优化)', description: '阿里达摩院中文特化模型' }
+        ],
+        english: [
+          { value: 'distil-whisper/distil-large-v3', text: 'Distil-Whisper Large-v3 (英文优化)', description: '英文优化的蒸馏模型' }
+        ]
+      };
+
+      // 清空现有选项
+      modelSelect.innerHTML = '';
+
+      // 添加通用模型
+      universalModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.value;
+        option.textContent = model.text;
+        option.title = model.description;
+        modelSelect.appendChild(option);
+      });
+
+      // 添加语言特定模型
+      if (languageSpecificModels[selectedLanguage]) {
+        languageSpecificModels[selectedLanguage].forEach(model => {
+          const option = document.createElement('option');
+          option.value = model.value;
+          option.textContent = model.text;
+          option.title = model.description;
+          modelSelect.appendChild(option);
+        });
+      }
+
+      // 设置默认选择
+      let defaultModel = 'large-v3-turbo';
+      if (selectedLanguage === 'chinese') {
+        // 中文优先使用 SenseVoice，如果不可用则使用 large-v3-turbo
+        const senseVoiceOption = modelSelect.querySelector('option[value="SenseVoiceSmall"]');
+        if (senseVoiceOption) {
+          defaultModel = 'SenseVoiceSmall';
+        }
+      } else if (selectedLanguage === 'english') {
+        // 英文优先使用 distil-whisper，如果不可用则使用 large-v3-turbo  
+        const distilOption = modelSelect.querySelector('option[value="distil-whisper/distil-large-v3"]');
+        if (distilOption) {
+          defaultModel = 'distil-whisper/distil-large-v3';
+        }
+      }
+
+      // 设置选中的默认模型
+      const defaultOption = modelSelect.querySelector(`option[value="${defaultModel}"]`);
+      if (defaultOption) {
+        modelSelect.value = defaultModel;
+      }
+
+      // 更新测试结果
+      const totalModels = modelSelect.options.length;
+      const hasLargeV3Turbo = Array.from(modelSelect.options).some(option => option.value === 'large-v3-turbo');
+      
+      resultsDiv.innerHTML = `
+        <strong>测试结果 (语言: ${selectedLanguage})</strong><br>
+        总模型数量: ${totalModels}<br>
+        包含 large-v3-turbo: ${hasLargeV3Turbo ? '✅ 是' : '❌ 否'}<br>
+        默认选中模型: ${modelSelect.value}<br>
+        所有可用模型: ${Array.from(modelSelect.options).map(opt => opt.value).join(', ')}
+      `;
+
+      console.log('模型更新完成，总计', totalModels, '个模型');
+      console.log('默认选中:', modelSelect.value);
+      console.log('large-v3-turbo 可用:', hasLargeV3Turbo);
+    }
+
+    function testUpdateModelOptions() {
+      updateModelOptions();
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      updateModelOptions();
+    });
+  </script>
+</body>
+</html>

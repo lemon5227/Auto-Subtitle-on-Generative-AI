@@ -240,6 +240,9 @@
     function init() {
       setupEventListeners();
       setConnectionStatus('未连接', 'gray');
+      
+      // 初始化模型选项
+      updateModelOptions();
 
       if (window.io) {
         connectSocket().catch(() => setConnectionStatus('未连接', 'gray'));
@@ -696,40 +699,45 @@
       // Clear current options
       modelSelect.innerHTML = '';
       
+      // 通用模型列表（支持多语言）
+      const universalModels = `
+        <option value="large-v3-turbo">large-v3-turbo (最快/推荐 - 多语言)</option>
+        <option value="large-v3">large-v3 (最新 - 多语言)</option>
+        <option value="large">large (多语言)</option>
+        <option value="medium">medium (多语言)</option>
+        <option value="small">small (多语言)</option>
+        <option value="base">base (多语言)</option>
+      `;
+      
       if (language === 'zh') {
-        // Chinese language options
-        modelSelect.innerHTML = `
-          <option value="sensevoice">SenseVoice (中文专用/备选Whisper)</option>
-          <option value="small">small (推荐中文)</option>
-          <option value="base">base</option>
-          <option value="medium">medium</option>
-          <option value="large">large</option>
-          <option value="large-v3">large-v3 (最新)</option>
-          <option value="distil-small.en">distil-small.en (英文)</option>
-          <option value="distil-medium.en">distil-medium.en (英文)</option>
+        // 中文特化模型 + 通用模型
+        modelSelect.innerHTML = universalModels + `
+          <option value="sensevoice">SenseVoice (中文专用)</option>
         `;
-        // Default to small for Chinese (more reliable)
-        modelSelect.value = 'small';
+        // 中文推荐使用 large-v3-turbo (速度快，准确度高)
+        modelSelect.value = 'large-v3-turbo';
+      } else if (language === 'en') {
+        // 英文特化模型 + 通用模型  
+        modelSelect.innerHTML = universalModels + `
+          <option value="distil-small.en">distil-small.en (英文专用/快速)</option>
+          <option value="distil-medium.en">distil-medium.en (英文专用/精确)</option>
+        `;
+        // 英文推荐使用 large-v3-turbo (最佳性能)
+        modelSelect.value = 'large-v3-turbo';
       } else {
-        // Other languages options
-        modelSelect.innerHTML = `
-          <option value="base">base</option>
-          <option value="small">small</option>
-          <option value="medium">medium</option>
-          <option value="large">large</option>
-          <option value="large-v3">large-v3 (最新)</option>
-          <option value="distil-small.en">distil-small.en (推荐)</option>
-          <option value="distil-medium.en">distil-medium.en</option>
-        `;
-        // Default to distil-small.en for English
-        modelSelect.value = language === 'en' ? 'distil-small.en' : 'small';
+        // 其他语言使用通用模型
+        modelSelect.innerHTML = universalModels;
+        // 其他语言推荐使用 large-v3-turbo
+        modelSelect.value = 'large-v3-turbo';
       }
       
-      // Try to restore previous selection if still available
+      // 尝试恢复之前的选择（如果仍然可用）
       const options = Array.from(modelSelect.options).map(opt => opt.value);
       if (options.includes(currentValue)) {
         modelSelect.value = currentValue;
       }
+      
+      console.log(`Language: ${language}, Selected model: ${modelSelect.value}, Available options: ${options.join(', ')}`);
     }
 
     window.addEventListener('beforeunload', () => {

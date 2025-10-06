@@ -76,20 +76,42 @@ check_wsl2_environment() {
 
 # 检查 Windows 端 NVIDIA 支持
 check_windows_nvidia() {
-    log_info "检查 Windows 端 NVIDIA 支持..."
+    log_wsl2 "检查 Windows 端 NVIDIA GPU 支持..."
     
-    # 检查 WSL 库文件
-    if [[ -d "/usr/lib/wsl/lib" ]] && ls /usr/lib/wsl/lib/libcuda.so* >/dev/null 2>&1; then
-        log_success "检测到 WSL GPU 库文件"
-        WSL_GPU_SUPPORT=true
+    # 检查 WSL GPU 库文件
+    if [[ -d "/usr/lib/wsl/lib" ]]; then
+        log_info "WSL GPU 库目录存在: /usr/lib/wsl/lib"
         
-        # 列出可用的 CUDA 库
-        log_info "可用的 CUDA 库:"
-        ls -la /usr/lib/wsl/lib/ | grep -E "(cuda|nv)" || true
+        if ls /usr/lib/wsl/lib/libcuda.so* >/dev/null 2>&1; then
+            log_success "✅ 检测到 WSL CUDA 库文件"
+            WSL_GPU_SUPPORT=true
+            
+            # 显示 CUDA 库信息
+            log_info "可用的 GPU 库文件:"
+            ls -la /usr/lib/wsl/lib/ | grep -E "(cuda|nv|cudnn)" | head -5
+            
+            # 检查驱动版本信息
+            if [[ -f "/usr/lib/wsl/lib/libcuda.so.1" ]]; then
+                log_info "CUDA 运行时库: ✅ 可用"
+            fi
+            
+            log_success "🎮 GPU 加速: 已启用 (通过 Windows NVIDIA 驱动)"
+            log_info "💡 说明: WSL2 通过 Windows 驱动提供 CUDA 支持，无需单独安装"
+        else
+            log_warning "❌ WSL GPU 库文件不完整"
+            WSL_GPU_SUPPORT=false
+        fi
     else
-        log_warning "未检测到 WSL GPU 支持库"
-        log_info "GPU 加速将不可用，将使用 CPU 模式"
+        log_warning "❌ WSL GPU 库目录不存在"
         WSL_GPU_SUPPORT=false
+    fi
+    
+    if [[ "$WSL_GPU_SUPPORT" == "false" ]]; then
+        log_info "🔧 GPU 支持检查失败，可能原因:"
+        log_info "   1. Windows NVIDIA 驱动版本过低 (需要 >= 470.76)"
+        log_info "   2. 没有安装 NVIDIA GPU 驱动"
+        log_info "   3. WSL2 配置问题"
+        log_info "💻 将使用 CPU 模式，仍可正常运行"
     fi
 }
 
@@ -202,12 +224,30 @@ install_python_deps() {
     # 升级基础工具
     pip install --upgrade pip setuptools wheel
     
-    # WSL2 专用 PyTorch 安装
+    # WSL2 智能 PyTorch 安装
+    log_info "安装 PyTorch (WSL2 专用配置)..."
+    
     if [[ "$WSL_GPU_SUPPORT" == "true" ]]; then
-        log_info "安装 CUDA 版本 PyTorch (WSL2 优化)..."
+        log_success "🎮 安装 GPU 加速版 PyTorch..."
+        log_info "   使用 Windows NVIDIA 驱动提供的 CUDA 支持"
         pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        
+        # 验证 GPU 支持
+        log_info "验证 GPU 支持..."
+        python -c "
+import torch
+import os
+print(f'PyTorch: {torch.__version__}')
+print(f'CUDA available: {torch.cuda.is_available()}')
+if torch.cuda.is_available():
+    print(f'GPU: {torch.cuda.get_device_name(0)}')
+    print('✅ WSL2 GPU 加速配置成功')
+else:
+    print('⚠️  GPU 不可用，但这是正常的，会在运行时检测')
+"
     else
-        log_info "安装 CPU 版本 PyTorch..."
+        log_info "💻 安装 CPU 版本 PyTorch..."
+        log_info "   注意: 即使安装 CPU 版本，如果后续检测到 GPU 也可以使用"
         pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     fi
     
@@ -257,19 +297,35 @@ def print_wsl2_info():
         print(f"   {key}={value}")
 
 def check_gpu_support():
-    """检查 GPU 支持"""
+    """检查 WSL2 GPU 支持"""
+    print("\n🔍 WSL2 GPU 环境检查:")
+    
+    # 检查 WSL GPU 库
+    import os
+    wsl_cuda_lib = "/usr/lib/wsl/lib/libcuda.so.1"
+    wsl_lib_exists = os.path.exists(wsl_cuda_lib)
+    print(f"   WSL CUDA 库: {'✅ 存在' if wsl_lib_exists else '❌ 不存在'}")
+    
+    if wsl_lib_exists:
+        print("   💡 通过 Windows NVIDIA 驱动提供 GPU 支持")
+    else:
+        print("   💡 需要在 Windows 端安装/更新 NVIDIA 驱动 (>= 470.76)")
+    
     try:
         import torch
         cuda_available = torch.cuda.is_available()
-        print(f"\n🎮 GPU 支持: {'✅ 可用' if cuda_available else '❌ 不可用 (将使用 CPU)'}")
+        print(f"   PyTorch CUDA: {'✅ 可用' if cuda_available else '❌ 不可用'}")
         
         if cuda_available:
             print(f"   GPU 设备: {torch.cuda.get_device_name(0)}")
             print(f"   CUDA 版本: {torch.version.cuda}")
+            print("   🚀 WSL2 GPU 加速已启用")
+        else:
+            print("   💻 将使用 CPU 模式 (仍可正常运行)")
         
         return cuda_available
     except Exception as e:
-        print(f"\n⚠️  GPU 检查失败: {e}")
+        print(f"   ⚠️  PyTorch 检查失败: {e}")
         return False
 
 def start_app():

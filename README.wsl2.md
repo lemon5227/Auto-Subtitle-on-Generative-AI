@@ -87,7 +87,9 @@ source ~/.bashrc
 rm miniconda.sh
 ```
 
-### 步骤 3: GPU 支持配置 (可选但推荐)
+### 步骤 3: WSL2 GPU 支持配置 ⭐ 核心特性
+
+> 💡 **WSL2 GPU 支持的独特优势**: 无需在 Linux 中安装 CUDA，通过 Windows 驱动即可获得完整 GPU 加速！
 
 #### 3.1 检查 Windows 端 NVIDIA 驱动
 ```powershell
@@ -95,10 +97,30 @@ rm miniconda.sh
 nvidia-smi
 ```
 
-确保 NVIDIA 驱动版本 >= 470.76
+**🎯 驱动版本要求:**
+- ✅ **推荐**: NVIDIA 驱动 >= 470.76 (支持 CUDA 11.4+)
+- ⭐ **最佳**: NVIDIA 驱动 >= 516.xx (支持 CUDA 11.7+) 
+- 🚀 **理想**: 最新版本驱动 (获得最佳兼容性)
 
-#### 3.2 WSL2 中不需要安装 CUDA Toolkit
-⚠️ **重要**: WSL2 环境下**不要**在 Linux 中安装 CUDA Toolkit，使用 Windows 端的即可。
+**📥 驱动更新方法:**
+1. 访问 [NVIDIA 官网](https://www.nvidia.com/drivers) 下载最新驱动
+2. 或使用 GeForce Experience 自动更新
+3. 更新后重启 Windows 系统
+
+#### 3.2 WSL2 CUDA 支持原理 ⭐ 重要
+⚠️ **关键信息**: WSL2 环境下的 CUDA 支持机制：
+
+**✅ 只需要（Windows 端）:**
+- ✅ 最新的 NVIDIA 驱动程序（版本 470.76 或更高）
+- ✅ Windows 端驱动自带 CUDA 运行时支持
+
+**❌ 不需要（WSL2 内部）:**
+- ❌ **不要**在 WSL2 中安装 CUDA Toolkit
+- ❌ **不要**安装 cuDNN
+- ❌ **不要**配置 CUDA 环境变量
+
+**🔧 工作原理:**
+Windows NVIDIA 驱动通过 `/usr/lib/wsl/lib/` 目录向 WSL2 提供 CUDA 库文件，实现无缝GPU加速。
 
 #### 3.3 验证 GPU 支持
 ```bash
@@ -123,10 +145,36 @@ conda create -n whisper-app python=3.11 -y
 conda activate whisper-app
 ```
 
-#### 4.3 安装 PyTorch (WSL2 专用)
+#### 4.3 安装 PyTorch (WSL2 专用配置)
+
+**🎯 WSL2 智能 PyTorch 安装:**
 ```bash
-# WSL2 环境下的 PyTorch 安装
+# WSL2 推荐方式：让脚本自动选择版本
+python -c "
+import subprocess
+import os
+
+# 检查 WSL GPU 库
+has_wsl_gpu = os.path.exists('/usr/lib/wsl/lib/libcuda.so.1')
+
+if has_wsl_gpu:
+    print('🎮 检测到 WSL GPU 支持，安装 CUDA 版本...')
+    subprocess.run(['pip', 'install', 'torch', 'torchvision', 'torchaudio', 
+                   '--index-url', 'https://download.pytorch.org/whl/cu118'])
+else:
+    print('💻 未检测到 GPU 支持，安装 CPU 版本...')
+    subprocess.run(['pip', 'install', 'torch', 'torchvision', 'torchaudio', 
+                   '--index-url', 'https://download.pytorch.org/whl/cpu'])
+"
+```
+
+**🔧 手动安装选择:**
+```bash
+# 有GPU支持时（推荐）
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# 仅CPU模式时
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 ```
 
 #### 4.4 安装应用依赖
@@ -134,15 +182,48 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install -r requirements.txt
 ```
 
-#### 4.5 验证 GPU 支持 (可选)
+#### 4.5 验证 WSL2 GPU 支持
 ```bash
+# 完整的 WSL2 GPU 验证脚本
 python -c "
 import torch
-print(f'CUDA available: {torch.cuda.is_available()}')
+import os
+
+print('🔍 WSL2 GPU 环境检查')
+print('-' * 40)
+
+# 检查 WSL GPU 库文件
+wsl_cuda_lib = '/usr/lib/wsl/lib/libcuda.so.1'
+print(f'WSL CUDA 库: {'✅ 存在' if os.path.exists(wsl_cuda_lib) else '❌ 不存在'}')
+
+if os.path.exists('/usr/lib/wsl/lib/'):
+    import glob
+    wsl_libs = glob.glob('/usr/lib/wsl/lib/*cuda*') + glob.glob('/usr/lib/wsl/lib/*nv*')
+    print(f'WSL GPU 库数量: {len(wsl_libs)}')
+
+# PyTorch CUDA 检查
+print(f'PyTorch 版本: {torch.__version__}')
+print(f'CUDA 可用: {'✅ 是' if torch.cuda.is_available() else '❌ 否'}')
+
 if torch.cuda.is_available():
-    print(f'GPU count: {torch.cuda.device_count()}')
-    print(f'GPU name: {torch.cuda.get_device_name(0)}')
-    print('GPU test:', torch.cuda.get_device_properties(0))
+    print(f'GPU 数量: {torch.cuda.device_count()}')
+    print(f'GPU 型号: {torch.cuda.get_device_name(0)}')
+    print(f'CUDA 版本: {torch.version.cuda}')
+    
+    # 简单测试
+    try:
+        x = torch.randn(100, 100).cuda()
+        y = torch.matmul(x, x)
+        print('GPU 计算测试: ✅ 通过')
+        del x, y
+        torch.cuda.empty_cache()
+    except Exception as e:
+        print(f'GPU 计算测试: ❌ 失败 - {e}')
+else:
+    print('建议检查:')
+    print('1. Windows NVIDIA 驱动版本是否 >= 470.76')
+    print('2. WSL2 是否正确安装')
+    print('3. 重启 WSL2: wsl --shutdown && wsl')
 "
 ```
 
@@ -217,9 +298,32 @@ cd /home/$USER/Auto-Subtitle-on-Generative-AI
 # 避免在 Windows 文件系统 (/mnt/c/) 中运行，性能较差
 ```
 
-## 🚨 常见问题和解决方案
+## ❓ WSL2 GPU 支持 FAQ
 
-### Q1: CUDA 错误 "no kernel image is available"
+### Q0: WSL2 需要安装 CUDA Toolkit 吗？ ⭐ 最重要
+**A: 不需要！这是 WSL2 的核心优势。**
+
+✅ **只需要:**
+- Windows 端最新 NVIDIA 驱动 (>= 470.76)
+- WSL2 正确安装
+
+❌ **不需要:**
+- 在 WSL2 中安装 CUDA Toolkit
+- 配置 CUDA 环境变量
+- 安装 cuDNN
+
+� **原理**: Windows NVIDIA 驱动自动向 WSL2 提供 CUDA 库文件到 `/usr/lib/wsl/lib/` 目录。
+
+### Q1: 如何确认 WSL2 GPU 支持正常？
+```bash
+# 检查 WSL GPU 库
+ls -la /usr/lib/wsl/lib/ | grep cuda
+
+# 测试 PyTorch GPU
+python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+```
+
+### Q2: CUDA 错误 "no kernel image is available"
 ```bash
 # 解决方案1: 强制使用 CPU
 export CUDA_VISIBLE_DEVICES=''
