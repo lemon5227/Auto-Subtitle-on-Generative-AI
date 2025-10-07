@@ -31,7 +31,8 @@
 - 🎯 **多模型支持** - Whisper Large-v3 Turbo, SenseVoice, Distil-Whisper
 - 🌍 **多语言识别** - 中文、英文、日语、韩语等
 - 💻 **跨平台支持** - Windows, macOS (含 Apple Silicon), Linux
-- ⚡ **硬件加速** - CUDA GPU, Apple Silicon MPS, CPU 优化
+- 🎮 **智能GPU检测** - 自动检测并适配 NVIDIA CUDA / AMD ROCm / Apple MPS
+- ⚡ **通用硬件加速** - 有GPU用GPU，无GPU智能回退CPU模式
 - 📹 **视频处理** - 本地文件和 YouTube 视频下载转录
 - 🔄 **字幕翻译** - 基于 Helsinki-NLP 的多语言翻译
 - 💾 **多格式导出** - VTT, SRT, 纯文本格式
@@ -39,12 +40,14 @@
 
 ## 🖥️ 支持的平台和加速
 
-| 平台 | CPU | GPU 加速 | 推荐配置 |
-|------|-----|----------|----------|
-| **Windows** | ✅ | CUDA GPU | RTX 3060+ |
-| **macOS (Apple Silicon)** | ✅ | MPS (M1/M2/M3) | 16GB+ RAM |
-| **macOS (Intel)** | ✅ | ❌ | 8GB+ RAM |
-| **Linux** | ✅ | CUDA GPU | RTX 3060+ |
+| 平台 | CPU | NVIDIA GPU | AMD GPU | Apple GPU | 推荐配置 |
+|------|-----|------------|---------|-----------|----------|
+| **Windows** | ✅ | CUDA ✅ | ROCm ⚠️ | ❌ | RTX 3060+ |
+| **macOS (Apple Silicon)** | ✅ | ❌ | ❌ | MPS ✅ | M1/M2/M3 16GB+ |
+| **macOS (Intel)** | ✅ | ❌ | ❌ | ❌ | 8GB+ RAM |
+| **Linux** | ✅ | CUDA ✅ | ROCm ✅ | ❌ | RTX 3060+ / RX 6600+ |
+
+> 🎮 **智能GPU检测**: 系统自动检测可用硬件，优先使用GPU加速，无GPU时智能回退CPU模式
 
 本仓库提供完整的 demo 实现，支持生产环境部署（需要额外的安全加固和错误处理）。
 

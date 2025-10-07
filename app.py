@@ -103,18 +103,73 @@ SUPPORTED_TRANSLATION_PAIRS = [
 # In-memory cache for loaded translation pipelines
 translation_pipelines = {}
 
-# Device selection for model inference - improved Mac support
-def get_device():
-    """Get the best available device for inference"""
-    if torch.cuda.is_available():
-        return 'cuda'
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        return 'mps'  # Apple Silicon Mac GPU support
-    else:
-        return 'cpu'
-
-DEVICE = get_device()
-print(f"Using device for inference: {DEVICE}")
+# 智能GPU检测和设备选择系统
+try:
+    from gpu_detector import get_optimal_device, create_device_environment, GPUDetector
+    
+    # 应用设备优化环境变量
+    device_env = create_device_environment()
+    for key, value in device_env.items():
+        os.environ[key] = value
+    
+    # 获取最佳设备并应用安全检查
+    DEVICE, device_info = get_optimal_device()
+    
+    # GPU可用性验证
+    gpu_validated = False
+    if DEVICE == 'cuda':
+        try:
+            # 验证CUDA可用性
+            test_tensor = torch.randn(10, 10).cuda()
+            del test_tensor
+            torch.cuda.empty_cache()
+            gpu_validated = True
+        except Exception as e:
+            print(f"⚠️ CUDA验证失败: {e}")
+            DEVICE = 'cpu'
+    elif DEVICE == 'mps':
+        try:
+            # 验证MPS可用性
+            test_tensor = torch.randn(10, 10).to('mps')
+            del test_tensor
+            gpu_validated = True
+        except Exception as e:
+            print(f"⚠️ MPS验证失败: {e}")
+            DEVICE = 'cpu'
+    
+    # 打印设备信息
+    print("🚀 智能GPU检测结果:")
+    print("=" * 50)
+    detector = GPUDetector()
+    print(f"🎯 选择设备: {DEVICE}")
+    print(f"📊 设备信息: {detector.get_device_summary()}")
+    print(f"⚡ 性能等级: {device_info['performance_level']}")
+    
+    if gpu_validated and DEVICE != 'cpu':
+        print("✅ GPU验证通过，将使用硬件加速")
+    elif DEVICE == 'cpu':
+        print("🔵 使用CPU模式，推荐选择较小的模型")
+    
+    if device_info['optimization_tips']:
+        print("💡 优化建议:")
+        for tip in device_info['optimization_tips'][:2]:  # 只显示前2个建议
+            print(f"   • {tip}")
+    print("=" * 50)
+    
+except ImportError as e:
+    # 后备方案：使用原有的简单检测
+    print("⚠️ GPU检测模块导入失败，使用基础检测")
+    def get_device():
+        """Get the best available device for inference"""
+        if torch.cuda.is_available():
+            return 'cuda'
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            return 'mps'
+        else:
+            return 'cpu'
+    
+    DEVICE = get_device()
+    print(f"使用设备: {DEVICE}")
 
 # Track download status in-memory to avoid reporting Ready before download completes
 download_status = {}  # keys: ('whisper', model_key) or ('translation', model_key) -> status string
