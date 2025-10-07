@@ -4,10 +4,10 @@
 
 ## 🌐 Choose Your Language | 选择语言
 
-| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux | 🪟 WSL2 |
-|:---:|:---:|:---:|:---:|:---:|
-| [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) | [🔧 WSL2 指南](README.wsl2.md) |
-| 完整中文说明 | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 | Windows 用户推荐 |
+| 🇨🇳 中文 | 🇺🇸 English | 🍎 macOS | 🐧 Linux | 🪟 WSL2 | 🎮 AMD |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| [📖 中文文档](README.zh-CN.md) | [📖 English](README.en.md) | [🍎 macOS 指南](README.macOS.md) | [🐧 Linux 指南](README.linux.md) | [🔧 WSL2 指南](README.wsl2.md) | [🎮 AMD 笔记本](README.amd.md) |
+| 完整中文说明 | Full English Guide | Apple Silicon 优化 | 丝滑一键部署 | Windows 用户推荐 | AMD GPU 专用 |
 
 ---
 
@@ -46,8 +46,47 @@
 | **macOS (Apple Silicon)** | ✅ | ❌ | ❌ | MPS ✅ | M1/M2/M3 16GB+ |
 | **macOS (Intel)** | ✅ | ❌ | ❌ | ❌ | 8GB+ RAM |
 | **Linux** | ✅ | CUDA ✅ | ROCm ✅ | ❌ | RTX 3060+ / RX 6600+ |
+| **AMD 笔记本** | ✅ | ❌ | ROCm ✅ | ❌ | RX 6600 XT / Ryzen 7 |
 
 > 🎮 **智能GPU检测**: 系统自动检测可用硬件，优先使用GPU加速，无GPU时智能回退CPU模式
+> 🔴 **AMD GPU**: 支持 RX 6000/7000/5000 系列，ROCm 平台加速，笔记本用户推荐
+
+## 🎮 智能GPU检测系统
+
+本项目采用先进的智能GPU检测和适配系统，自动识别并优化各种硬件环境：
+
+### 🔍 自动硬件检测
+- **NVIDIA GPU**: 检测CUDA驱动，自动启用CUDA加速
+- **AMD GPU**: 检测ROCm平台，支持RX 6000/7000/5000系列
+- **Apple Silicon**: 检测MPS支持，Apple Silicon Mac优化
+- **CPU模式**: 无GPU时自动回退，优化多线程性能
+
+### ⚡ 智能设备选择
+```bash
+# 系统自动选择最佳设备
+python start_smart.py  # 智能启动器会显示检测结果
+
+# 示例输出:
+# 🎯 选择设备: cuda
+# 📊 设备信息: 🟢 NVIDIA GPU (RTX 3060, 6GB) - acceptable 性能
+# 💡 使用 CUDA 加速获得最佳性能
+```
+
+### 🎯 性能优化建议
+系统会根据检测到的硬件提供个性化建议：
+- **NVIDIA用户**: 显存充足时推荐large模型
+- **AMD用户**: 推荐small/base模型，ROCm优化
+- **Apple Silicon**: medium模型性能最佳
+- **CPU用户**: base模型获得最佳速度
+
+### 🔧 环境验证工具
+```bash
+# 完整环境检测
+python test_gpu_detection.py
+
+# 快速GPU检测
+python gpu_detector.py
+```
 
 本仓库提供完整的 demo 实现，支持生产环境部署（需要额外的安全加固和错误处理）。
 
@@ -85,15 +124,23 @@ curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generati
 curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generative-AI/main/install-wsl2.sh | bash
 ```
 
+#### 🎮 AMD 笔记本专用部署
+```bash
+# AMD GPU 笔记本用户专用一键部署
+curl -fsSL https://raw.githubusercontent.com/lemon5227/Auto-Subtitle-on-Generative-AI/main/install-amd.sh | bash
+```
+
 | 平台 | 部署方案 | 特色优化 | 安装时间 |
 |------|----------|----------|----------|
 | 🐧 **Linux** | [🚀 一键脚本](README.linux.md) | 检测发行版 • 自动装依赖 • GPU加速 | ~5分钟 |
+| 🎮 **AMD 笔记本** | [🔴 AMD专用](README.amd.md) | ROCm支持 • AMD GPU优化 • 笔记本适配 | ~6分钟 |
 | 🪟 **WSL2** | [🔧 WSL2专用](README.wsl2.md) | GPU支持 • 环境优化 • 兼容性修复 | ~6分钟 |
 | 🍎 **macOS** | [🍎 Apple优化](README.macOS.md) | Apple Silicon • MPS加速 • Homebrew | ~8分钟 |
 | 🪟 **Windows** | [参考通用步骤](#🚀-快速开始) | CUDA支持 • 虚拟环境 | ~10分钟 |
 
 > 💡 **最佳体验**: 
 > - **Linux** 原生用户: 使用一键脚本，性能最佳
+> - **AMD 笔记本** 用户: 使用AMD专用脚本，ROCm GPU加速
 > - **Windows** 用户: 推荐 WSL2 方案，体验接近原生 Linux
 > - **macOS** 用户: 使用专用指南，Apple Silicon 优化
 
