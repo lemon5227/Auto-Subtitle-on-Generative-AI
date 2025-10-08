@@ -102,7 +102,7 @@
   <main class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
     <!-- 控制面板 -->
     <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <!-- 麦克风控制 -->
         <div class="text-center">
           <div class="relative inline-block">
@@ -146,13 +146,167 @@
           </select>
         </div>
       </div>
+
+      <!-- 高级功能面板 -->
+      <div class="border-t border-gray-200 pt-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-900">🎯 高级功能</h3>
+          <button id="advancedToggle" class="text-sm text-gray-600 hover:text-gray-900" onclick="toggleAdvanced()">
+            <span id="advancedToggleText">展开</span>
+            <svg id="advancedToggleIcon" class="inline w-4 h-4 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div id="advancedPanel" class="hidden space-y-6">
+          <!-- 1. 实时翻译 (Helsinki-NLP) -->
+          <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
+            <label class="flex items-center space-x-2 mb-3 cursor-pointer">
+              <input type="checkbox" id="enableTranslation" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" onchange="toggleTranslationSettings()">
+              <span class="text-sm font-semibold text-gray-900">🚀 实时翻译 (快速)</span>
+            </label>
+            
+            <div id="translationSettings" class="hidden space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">翻译到</label>
+                <select id="targetLanguage" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                  <option value="zh">中文 (Chinese)</option>
+                  <option value="en">英语 (English)</option>
+                  <option value="ja">日语 (Japanese)</option>
+                  <option value="ko">韩语 (Korean)</option>
+                  <option value="es">西班牙语 (Spanish)</option>
+                  <option value="fr">法语 (French)</option>
+                  <option value="de">德语 (German)</option>
+                </select>
+              </div>
+              
+              <div class="bg-blue-50 rounded p-2 border border-blue-200">
+                <p class="text-xs text-blue-800">
+                  <span class="font-semibold">💡 提示：</span>
+                  使用轻量级 Helsinki-NLP 模型进行快速实时翻译，边说边译，延迟极低。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 字幕优化 (Qwen) -->
+          <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+            <label class="flex items-center space-x-2 mb-3 cursor-pointer">
+              <input type="checkbox" id="enableRefinement" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" onchange="toggleRefinementSettings()">
+              <span class="text-sm font-semibold text-gray-900">✨ 字幕优化 (高质量)</span>
+            </label>
+            
+            <div id="refinementSettings" class="hidden space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">选择 Qwen 模型</label>
+                <select id="refinementModel" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500">
+                  <option value="Qwen/Qwen3-0.6B">Qwen3-0.6B - 超轻量 (2GB显存)</option>
+                  <option value="Qwen/Qwen3-1.7B" selected>Qwen3-1.7B - 推荐⭐ (4GB显存)</option>
+                  <option value="Qwen/Qwen3-4B">Qwen3-4B - 高质量 (8GB显存)</option>
+                  <option value="Qwen/Qwen3-8B">Qwen3-8B - 专业级 (16GB显存)</option>
+                </select>
+              </div>
+              
+              <div class="bg-purple-50 rounded p-2 border border-purple-200">
+                <p class="text-xs text-purple-800 mb-2">
+                  <span class="font-semibold">🎯 优化选项：</span>
+                </p>
+                <div class="space-y-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                      <input type="checkbox" id="fixPunctuation" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
+                      <span class="text-xs text-gray-700">标点符号</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                      <input type="checkbox" id="fixGrammar" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
+                      <span class="text-xs text-gray-700">语法纠错</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                      <input type="checkbox" id="removeFillers" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
+                      <span class="text-xs text-gray-700">去除口语词</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer">
+                      <input type="checkbox" id="formatSegments" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
+                      <span class="text-xs text-gray-700">上下文优化</span>
+                    </label>
+                  </div>
+                  
+                  <div class="border-t border-purple-200 pt-2 mt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input type="checkbox" id="enableDeepThinking" class="w-3 h-3 text-purple-600 border-gray-300 rounded">
+                      <span class="text-xs text-gray-700 font-medium">🧠 深度思考模式</span>
+                      <span class="text-xs text-gray-500">(质量↑ 速度↓)</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1 ml-5">
+                      启用后Qwen会进行深入分析和推理，质量更高但耗时更长
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="bg-amber-50 rounded p-2 border border-amber-200">
+                <p class="text-xs text-amber-800">
+                  <span class="font-semibold">💡 提示：</span>
+                  Qwen会分析完整字幕上下文，提供专业级校对和翻译。
+                </p>
+              </div>
+              
+              <button id="batchRefineBtn" class="w-full mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center justify-center gap-2" onclick="batchRefineAllSubtitles()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>批量优化字幕</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. 模型管理 -->
+          <div class="border-t border-gray-200 pt-4">
+            <button id="modelManagementToggle" class="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 mb-3" onclick="toggleModelManagement()">
+              <span>� 模型管理</span>
+              <svg id="modelManagementIcon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            
+            <div id="modelManagementPanel" class="hidden bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
+              <div id="modelListContainer" class="space-y-2">
+                <p class="text-xs text-gray-500">加载中...</p>
+              </div>
+              
+              <div class="flex justify-between items-center pt-3 border-t border-gray-300">
+                <button id="downloadModelBtn" class="text-xs px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition" onclick="showDownloadModal()">
+                  📥 下载新模型
+                </button>
+                <button id="refreshModelsBtn" class="text-xs px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition" onclick="refreshModelList()">
+                  🔄 刷新状态
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+```      </div>
     </div>
 
     <!-- 字幕显示区 -->
     <div class="elegant-card rounded-lg p-6 minimal-shadow">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">实时字幕</h2>
+        <div class="flex items-center space-x-3">
+          <h2 class="text-lg font-semibold text-gray-900">实时字幕</h2>
+          <div class="flex items-center space-x-2 text-xs">
+            <span id="subtitleCount" class="px-2 py-1 bg-gray-100 text-gray-700 rounded">0 条</span>
+            <span id="translationStatus" class="px-2 py-1 bg-blue-100 text-blue-700 rounded hidden">翻译中...</span>
+            <span id="refinementStatus" class="px-2 py-1 bg-green-100 text-green-700 rounded hidden">优化中...</span>
+          </div>
+        </div>
         <div class="flex space-x-2">
+          <button id="exportBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            导出
+          </button>
           <button id="clearBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
             清空
           </button>
@@ -169,6 +323,7 @@
           </svg>
           <p>字幕将在这里实时显示...</p>
           <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
+          <p class="text-xs mt-2 text-gray-400">启用翻译可显示双语字幕 • 启用优化可提升质量</p>
         </div>
       </div>
     </div>
@@ -196,6 +351,94 @@
         <div class="flex justify-end space-x-3 mt-6">
           <button id="cancelSaveBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
           <button id="confirmSaveBtn" class="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下载模型模态框 -->
+  <div id="downloadModal" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
+    <div class="relative top-10 mx-auto p-6 border border-gray-200 w-full max-w-2xl shadow-lg rounded-lg bg-white">
+      <div class="mt-3">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+          </svg>
+          下载Qwen模型
+        </h3>
+        
+        <div class="space-y-4">
+          <!-- 模型选择 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-900 mb-2">选择模型</label>
+            <select id="downloadModelSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600">
+              <option value="">-- 请选择模型 --</option>
+              <optgroup label="🔥 推荐 - 实时翻译">
+                <option value="Qwen/Qwen3-0.6B">Qwen3-0.6B (0.6B, ~2GB, 超快⚡⚡⚡)</option>
+                <option value="Qwen/Qwen3-1.7B">Qwen3-1.7B (1.7B, ~4GB, 推荐⭐)</option>
+              </optgroup>
+              <optgroup label="✨ 字幕优化">
+                <option value="Qwen/Qwen3-4B">Qwen3-4B (4B, ~8GB, 高质量)</option>
+                <option value="Qwen/Qwen3-8B">Qwen3-8B (8B, ~16GB, 最佳)</option>
+              </optgroup>
+            </select>
+          </div>
+          
+          <!-- 设备选择 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-900 mb-2">运行设备</label>
+            <div class="flex gap-3">
+              <label class="flex items-center">
+                <input type="radio" name="downloadDevice" value="auto" class="mr-2" checked>
+                <span class="text-sm">自动检测</span>
+              </label>
+              <label class="flex items-center">
+                <input type="radio" name="downloadDevice" value="cuda" class="mr-2">
+                <span class="text-sm">GPU (CUDA)</span>
+              </label>
+              <label class="flex items-center">
+                <input type="radio" name="downloadDevice" value="cpu" class="mr-2">
+                <span class="text-sm">CPU</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 精度选择 -->
+          <div>
+            <label class="flex items-center">
+              <input type="checkbox" id="useFP16" class="mr-2">
+              <span class="text-sm font-medium text-gray-900">使用FP16精度（节省显存，仅GPU支持）</span>
+            </label>
+          </div>
+          
+          <!-- 下载进度 -->
+          <div id="downloadProgress" class="hidden">
+            <div class="bg-gray-100 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700">下载进度</span>
+                <span id="downloadPercent" class="text-sm text-gray-600">0%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="downloadProgressBar" class="bg-purple-600 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+              </div>
+              <p id="downloadStatus" class="text-xs text-gray-600 mt-2">准备下载...</p>
+            </div>
+          </div>
+          
+          <!-- 提示信息 -->
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <p class="text-xs text-blue-800">
+              <strong>💡 提示：</strong><br>
+              • 首次下载需要几分钟到几十分钟，取决于网络速度<br>
+              • 模型会自动保存到 ~/.cache/huggingface/hub<br>
+              • 可以使用镜像加速：export HF_ENDPOINT=https://hf-mirror.com
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3 mt-6">
+          <button id="cancelDownloadBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+          <button id="startDownloadBtn" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700">开始下载</button>
         </div>
       </div>
     </div>
@@ -243,11 +486,234 @@
       
       // 初始化模型选项
       updateModelOptions();
+      
+      // 检查Qwen模型可用性
+      checkQwenAvailability();
+      
+      // 加载模型列表
+      refreshModelList();
 
       if (window.io) {
-        connectSocket().catch(() => setConnectionStatus('未连接', 'gray'));
+        connectSocket().catch((err) => {
+          setConnectionStatus('未连接', 'gray');
+        });
       } else {
         setConnectionStatus('缺少 Socket.IO', 'red');
+      }
+    }
+    
+    async function checkQwenAvailability() {
+      try {
+        const response = await fetch('/api/qwen_models');
+        const data = await response.json();
+        
+        if (!data.available) {
+          // Qwen不可用，更新UI
+          const refinementModel = document.getElementById('refinementModel');
+          const options = refinementModel.querySelectorAll('option');
+          options.forEach(opt => {
+            if (opt.value.startsWith('qwen')) {
+              opt.disabled = true;
+              opt.textContent += ' (未安装)';
+            }
+          });
+          refinementModel.value = 'local';
+          
+          // 显示提示
+          console.warn('Qwen模型不可用，仅支持本地规则优化');
+        } else {
+          console.log('✅ Qwen模型可用:', data.models);
+        }
+      } catch (error) {
+        console.error('检查Qwen可用性失败:', error);
+      }
+    }
+    
+    // ========== 模型管理功能 ==========
+    
+    async function refreshModelList() {
+      const container = document.getElementById('modelListContainer');
+      container.innerHTML = '<p class="text-xs text-gray-500">加载中...</p>';
+      
+      try {
+        const response = await fetch('/api/qwen_models/list');
+        const data = await response.json();
+        
+        if (!data.models || data.models.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-3 text-gray-500">
+              <p class="text-sm">暂无已下载的模型</p>
+              <p class="text-xs mt-1">点击"下载新模型"开始使用</p>
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = data.models.map(model => `
+          <div class="bg-white border border-gray-200 rounded-md p-3 flex justify-between items-center hover:border-purple-300 transition-colors">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-medium text-gray-900">${model.name}</h4>
+                ${model.recommended ? '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">推荐⭐</span>' : ''}
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                ${model.size} • ${model.best_for || '通用'}
+                ${model.path ? ' • 已下载✓' : ' • 未下载'}
+              </p>
+            </div>
+            <div class="flex gap-2">
+              ${model.path ? `
+                <button onclick="deleteModel('${model.model_id}')" class="text-xs px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">
+                  🗑️ 删除
+                </button>
+              ` : `
+                <button onclick="downloadModelDirect('${model.model_id}')" class="text-xs px-3 py-1 bg-purple-50 text-purple-600 border border-purple-200 rounded hover:bg-purple-100">
+                  📥 下载
+                </button>
+              `}
+            </div>
+          </div>
+        `).join('');
+        
+      } catch (error) {
+        console.error('加载模型列表失败:', error);
+        container.innerHTML = `
+          <div class="text-center py-3 text-red-500">
+            <p class="text-sm">加载失败</p>
+            <button onclick="refreshModelList()" class="text-xs underline mt-1">重试</button>
+          </div>
+        `;
+      }
+    }
+    
+    function showDownloadModal() {
+      document.getElementById('downloadModal').classList.remove('hidden');
+      document.getElementById('downloadProgress').classList.add('hidden');
+      document.getElementById('downloadProgressBar').style.width = '0%';
+    }
+    
+    function hideDownloadModal() {
+      document.getElementById('downloadModal').classList.add('hidden');
+    }
+    
+    async function downloadModelDirect(modelId) {
+      // 直接下载指定模型
+      document.getElementById('downloadModelSelect').value = modelId;
+      showDownloadModal();
+    }
+    
+    async function startModelDownload() {
+      const modelSelect = document.getElementById('downloadModelSelect');
+      const modelId = modelSelect.value;
+      
+      if (!modelId) {
+        alert('请选择要下载的模型');
+        return;
+      }
+      
+      const device = document.querySelector('input[name="downloadDevice"]:checked').value;
+      const useFP16 = document.getElementById('useFP16').checked;
+      
+      // 显示进度
+      document.getElementById('downloadProgress').classList.remove('hidden');
+      document.getElementById('startDownloadBtn').disabled = true;
+      document.getElementById('startDownloadBtn').textContent = '下载中...';
+      
+      try {
+        const response = await fetch('/api/qwen_models/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model_id: modelId,
+            device: device,
+            use_fp16: useFP16
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('下载请求失败');
+        }
+        
+        // 轮询下载状态
+        await pollDownloadStatus(modelId);
+        
+      } catch (error) {
+        console.error('下载失败:', error);
+        alert('模型下载失败: ' + error.message);
+        document.getElementById('startDownloadBtn').disabled = false;
+        document.getElementById('startDownloadBtn').textContent = '开始下载';
+      }
+    }
+    
+    async function pollDownloadStatus(modelId) {
+      const maxAttempts = 600; // 最多10分钟
+      let attempts = 0;
+      
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+          const response = await fetch(`/api/qwen_models/download_status?model_id=${encodeURIComponent(modelId)}`);
+          const data = await response.json();
+          
+          // 更新进度
+          const percent = data.progress || 0;
+          document.getElementById('downloadProgressBar').style.width = percent + '%';
+          document.getElementById('downloadPercent').textContent = percent + '%';
+          document.getElementById('downloadStatus').textContent = data.status || '下载中...';
+          
+          if (data.completed) {
+            clearInterval(pollInterval);
+            document.getElementById('downloadProgressBar').style.width = '100%';
+            document.getElementById('downloadPercent').textContent = '100%';
+            document.getElementById('downloadStatus').textContent = '✅ 下载完成！';
+            
+            setTimeout(() => {
+              hideDownloadModal();
+              refreshModelList();
+              checkQwenAvailability();
+            }, 2000);
+            
+            document.getElementById('startDownloadBtn').disabled = false;
+            document.getElementById('startDownloadBtn').textContent = '开始下载';
+          }
+          
+          if (data.error || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            alert('下载失败: ' + (data.error || '超时'));
+            document.getElementById('startDownloadBtn').disabled = false;
+            document.getElementById('startDownloadBtn').textContent = '开始下载';
+          }
+        } catch (error) {
+          console.error('轮询状态失败:', error);
+        }
+      }, 1000);
+    }
+    
+    async function deleteModel(modelId) {
+      if (!confirm(`确定要删除模型 ${modelId} 吗？\n\n删除后需要重新下载才能使用。`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/qwen_models/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_id: modelId })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert('✅ 模型删除成功');
+          refreshModelList();
+          checkQwenAvailability();
+        } else {
+          alert('删除失败: ' + (data.error || '未知错误'));
+        }
+      } catch (error) {
+        console.error('删除模型失败:', error);
+        alert('删除失败: ' + error.message);
       }
     }
 
@@ -269,6 +735,24 @@
       saveBtn.addEventListener('click', showSaveModal);
       cancelSaveBtn.addEventListener('click', hideSaveModal);
       confirmSaveBtn.addEventListener('click', saveSubtitles);
+      
+      // 导出按钮
+      const exportBtn = document.getElementById('exportBtn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', showSaveModal);
+      }
+      
+      // 模型管理按钮
+      const cancelDownloadBtn = document.getElementById('cancelDownloadBtn');
+      const startDownloadBtn = document.getElementById('startDownloadBtn');
+      
+      if (cancelDownloadBtn) {
+        cancelDownloadBtn.addEventListener('click', hideDownloadModal);
+      }
+      
+      if (startDownloadBtn) {
+        startDownloadBtn.addEventListener('click', startModelDownload);
+      }
     }
 
     function setConnectionStatus(text, tone = 'gray') {
@@ -282,24 +766,41 @@
         return;
       }
 
-      socket = io('/', { transports: ['websocket'], autoConnect: false });
+      // 使用当前页面的协议和主机，确保与服务器地址一致
+      const socketUrl = window.location.origin;
+      console.log('🔌 连接到 Socket.IO 服务器:', socketUrl);
+
+      socket = io(socketUrl, { 
+        transports: ['polling', 'websocket'],
+        upgrade: true,
+        rememberUpgrade: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 10000,
+        path: '/socket.io/'
+      });
 
       socket.on('connect', () => {
+        console.log('✅ Socket connected:', socket.id);
         setConnectionStatus('已连接', 'green');
       });
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', (reason) => {
+        console.log('❌ Socket disconnected:', reason);
         setConnectionStatus('未连接', 'gray');
         transcriptionActive = false;
         listening = false;
         resetUIToIdle();
       });
 
-      socket.on('connect_error', () => {
+      socket.on('connect_error', (error) => {
+        console.error('❌ Connection error:', error);
         setConnectionStatus('连接错误', 'red');
       });
 
-      socket.on('reconnect_attempt', () => {
+      socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('🔄 Reconnecting... attempt:', attemptNumber);
         setConnectionStatus('重连中...', 'yellow');
       });
 
@@ -347,12 +848,14 @@
 
         const handleConnect = () => {
           cleanup();
+          console.log('✅ Socket ready');
           setConnectionStatus('已连接', 'green');
           resolve(socket);
         };
 
         const handleError = (err) => {
           cleanup();
+          console.error('❌ Socket error:', err);
           setConnectionStatus('连接错误', 'red');
           reject(err);
         };
@@ -365,7 +868,11 @@
 
         socket.once('connect', handleConnect);
         socket.once('connect_error', handleError);
-        socket.connect();
+        
+        // 如果未连接，则连接
+        if (!socket.connected) {
+          socket.connect();
+        }
       });
 
       return socketReadyPromise;
@@ -484,7 +991,7 @@
     }
 
     function resetUIToIdle() {
-      micStatus.textContent = '麦克风未激活';
+      micStatus.textContent = '就绪 - 点击开始监听';
       micBtnText.textContent = '开始监听';
       micBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
       micBtn.classList.add('bg-gray-900', 'hover:bg-gray-800');
@@ -556,29 +1063,281 @@
       return btoa(binary);
     }
 
-    function addSubtitle(text, timestamp = Date.now()) {
+    // 翻译和优化功能
+    async function translateText(text, targetLang) {
+      try {
+        // 实时翻译始终使用Helsinki-NLP（快速）
+        const response = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            source_lang: languageSelect.value,
+            target_lang: targetLang,
+            use_qwen: false,  // 实时翻译使用Helsinki-NLP
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn('⚠️ 翻译失败:', errorData.error || response.statusText);
+          if (errorData.suggestion) {
+            console.info('💡', errorData.suggestion);
+          }
+          return text;
+        }
+        
+        const data = await response.json();
+        return data.translated_text || text;
+        
+      } catch (error) {
+        console.error('❌ 翻译错误:', error);
+        return text;
+      }
+    }
+
+    async function refineSubtitle(text) {
+      try {
+        const enableRefinement = document.getElementById('enableRefinement').checked;
+        if (!enableRefinement) return text;
+
+        const refinementModel = document.getElementById('refinementModel').value;
+        const fixPunctuation = document.getElementById('fixPunctuation').checked;
+        const fixGrammar = document.getElementById('fixGrammar').checked;
+        const removeFillers = document.getElementById('removeFillers').checked;
+        const formatSegments = document.getElementById('formatSegments').checked;
+
+        // 获取最近的字幕作为上下文（最多3条）
+        const subtitleItems = Array.from(document.querySelectorAll('.subtitle-item'));
+        const contextTexts = subtitleItems
+          .slice(-3)  // 最近3条
+          .map(item => {
+            const textElement = item.querySelector('.original-text p');
+            return textElement ? textElement.textContent : '';
+          })
+          .filter(t => t);
+
+        const response = await fetch('/api/refine_subtitle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            model: refinementModel,
+            context: contextTexts,  // 传递上下文
+            language: selectedLanguage,  // 传递语言信息
+            options: {
+              fix_punctuation: fixPunctuation,
+              fix_grammar: fixGrammar,
+              remove_fillers: removeFillers,
+              format_segments: formatSegments
+            }
+          })
+        });
+        
+        if (!response.ok) throw new Error('优化失败');
+        const data = await response.json();
+        return data.refined_text || text;
+      } catch (error) {
+        console.error('优化错误:', error);
+        return text;
+      }
+    }
+
+    async function addSubtitle(text, timestamp = Date.now()) {
       const subtitleId = ++currentSubtitleId;
       const timeStr = new Date(timestamp).toLocaleTimeString();
+      
+      // 更新计数器
+      updateSubtitleCount();
 
+      // 先显示原始字幕
       const subtitleElement = document.createElement('div');
-      subtitleElement.className = 'subtitle-item bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-indigo-500';
-      subtitleElement.innerHTML = `
+      subtitleElement.className = 'subtitle-item bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-gray-500';
+      subtitleElement.dataset.id = subtitleId;
+      
+      // 获取翻译设置
+      const translationEnabled = document.getElementById('enableTranslation')?.checked;
+      const targetLang = document.getElementById('targetLanguage')?.value;
+      
+      let originalHTML = `
         <div class="flex justify-between items-start mb-1">
           <span class="text-xs text-gray-500">${timeStr}</span>
-          <button onclick="deleteSubtitle(${subtitleId})" class="text-gray-400 hover:text-red-500 text-xs">×</button>
+          <div class="flex gap-1">
+            <button onclick="deleteSubtitle(${subtitleId})" class="text-gray-400 hover:text-red-500 text-xs">×</button>
+          </div>
         </div>
-        <p class="text-gray-800 leading-relaxed">${highlightKeywords(text)}</p>
+        <div class="subtitle-content">
+          <div class="original-text">
+            <p class="text-gray-800 leading-relaxed">${escapeHtml(text)}</p>
+          </div>
+        </div>
       `;
 
-      const initialHint = subtitleArea.querySelector('.text-gray-400');
-      if (initialHint) {
-        initialHint.remove();
+      subtitleElement.innerHTML = originalHTML;
+
+      // 移除初始提示（查找并删除整个提示div）
+      const initialHintDiv = subtitleArea.querySelector('div.text-gray-500.text-center');
+      if (initialHintDiv) {
+        initialHintDiv.remove();
       }
 
       subtitleArea.appendChild(subtitleElement);
       subtitleArea.scrollTop = subtitleArea.scrollHeight;
 
-      subtitles.push({ id: subtitleId, text, timestamp });
+      let processedText = text;
+      let translatedText = null;
+
+      // 异步处理优化（仅用于实时优化，如果启用）
+      // 注意：字幕优化主要用于批量处理，不建议实时启用
+      if (document.getElementById('enableRefinement')?.checked) {
+        showRefinementStatus(true);
+        processedText = await refineSubtitle(text);
+        hideRefinementStatus();
+        
+        // 更新显示优化后的文本
+        const originalDiv = subtitleElement.querySelector('.original-text p');
+        if (originalDiv) {
+          originalDiv.innerHTML = `${escapeHtml(processedText)} <span class="text-xs text-green-600">✨</span>`;
+        }
+      }
+
+      // 实时翻译：当启用翻译且有目标语言时自动翻译
+      if (translationEnabled && targetLang && targetLang !== languageSelect.value) {
+        showTranslationStatus(true);
+        translatedText = await translateText(processedText, targetLang);
+        hideTranslationStatus();
+        
+        // 分屏显示：原文和译文并排
+        const contentDiv = subtitleElement.querySelector('.subtitle-content');
+        contentDiv.className = 'subtitle-content grid grid-cols-2 gap-2';
+        
+        // 更新原文样式
+        const originalDiv = contentDiv.querySelector('.original-text');
+        originalDiv.className = 'original-text border-r border-gray-200 pr-2';
+        
+        // 添加翻译文本（右侧）
+        const translationDiv = document.createElement('div');
+        translationDiv.className = 'translation-text pl-2';
+        translationDiv.innerHTML = `
+          <p class="text-sm text-blue-700 leading-relaxed">${escapeHtml(translatedText)} <span class="text-xs">🌐</span></p>
+        `;
+        contentDiv.appendChild(translationDiv);
+        
+        // 更新边框颜色表示已翻译
+        subtitleElement.classList.remove('border-gray-500');
+        subtitleElement.classList.add('border-blue-500');
+      }
+
+      subtitles.push({ 
+        id: subtitleId, 
+        text: processedText, 
+        original: text,
+        translation: translatedText,
+        timestamp 
+      });
+    }
+    
+    // 按需翻译函数
+    async function translateOnDemand(subtitleId) {
+      const subtitleElement = document.querySelector(`[data-id="${subtitleId}"]`);
+      if (!subtitleElement) return;
+      
+      // 检查是否已翻译
+      if (subtitleElement.querySelector('.translation-text')) {
+        console.log('已翻译过，跳过');
+        return;
+      }
+      
+      const translateBtn = subtitleElement.querySelector('.translate-btn');
+      if (translateBtn) {
+        translateBtn.disabled = true;
+        translateBtn.textContent = '⏳';
+      }
+      
+      try {
+        // 获取原文
+        const originalText = subtitles.find(s => s.id === subtitleId)?.text || 
+                           subtitleElement.querySelector('.original-text p')?.textContent.replace('✨', '').trim();
+        
+        if (!originalText) return;
+        
+        const targetLang = document.getElementById('targetLanguage').value;
+        showTranslationStatus(true);
+        const translatedText = await translateText(originalText, targetLang);
+        hideTranslationStatus();
+        
+        // 分屏显示
+        const contentDiv = subtitleElement.querySelector('.subtitle-content');
+        contentDiv.className = 'subtitle-content grid grid-cols-2 gap-2';
+        
+        // 更新原文样式
+        const originalDiv = contentDiv.querySelector('.original-text');
+        originalDiv.className = 'original-text border-r border-gray-200 pr-2';
+        
+        // 添加翻译文本（右侧）
+        const translationDiv = document.createElement('div');
+        translationDiv.className = 'translation-text pl-2';
+        translationDiv.innerHTML = `
+          <p class="text-sm text-blue-700 leading-relaxed">${escapeHtml(translatedText)} <span class="text-xs">🌐</span></p>
+        `;
+        contentDiv.appendChild(translationDiv);
+        
+        // 更新边框和按钮
+        subtitleElement.classList.remove('border-gray-500');
+        subtitleElement.classList.add('border-blue-500');
+        
+        if (translateBtn) {
+          translateBtn.remove(); // 翻译后移除按钮
+        }
+        
+        // 更新数据
+        const subtitle = subtitles.find(s => s.id === subtitleId);
+        if (subtitle) {
+          subtitle.translation = translatedText;
+        }
+        
+      } catch (error) {
+        console.error('按需翻译失败:', error);
+        if (translateBtn) {
+          translateBtn.disabled = false;
+          translateBtn.textContent = '🌐';
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function updateSubtitleCount() {
+      const countElement = document.getElementById('subtitleCount');
+      if (countElement) {
+        countElement.textContent = `${subtitles.length + 1} 条`;
+      }
+    }
+
+    function showTranslationStatus(show) {
+      const status = document.getElementById('translationStatus');
+      if (status) {
+        status.classList.toggle('hidden', !show);
+      }
+    }
+
+    function hideTranslationStatus() {
+      setTimeout(() => showTranslationStatus(false), 1000);
+    }
+
+    function showRefinementStatus(show) {
+      const status = document.getElementById('refinementStatus');
+      if (status) {
+        status.classList.toggle('hidden', !show);
+      }
+    }
+
+    function hideRefinementStatus() {
+      setTimeout(() => showRefinementStatus(false), 1000);
     }
 
     function highlightKeywords(text) {
@@ -606,16 +1365,77 @@
 
     function clearSubtitles() {
       subtitleArea.innerHTML = `
-        <div class="text-gray-400 text-center py-8">
-          <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="text-gray-500 text-center py-8">
+          <svg class="mx-auto h-10 w-10 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
           <p>字幕将在这里实时显示...</p>
           <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
+          <p class="text-xs mt-2 text-gray-400">启用翻译可显示双语字幕 • 启用优化可提升质量</p>
         </div>
       `;
       subtitles = [];
       currentSubtitleId = 0;
+      updateSubtitleCount();
+    }
+
+    // UI 控制函数
+    function toggleAdvanced() {
+      const panel = document.getElementById('advancedPanel');
+      const icon = document.getElementById('advancedToggleIcon');
+      const text = document.getElementById('advancedToggleText');
+      
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+        text.textContent = '收起';
+      } else {
+        panel.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+        text.textContent = '展开';
+      }
+    }
+
+    function toggleTranslationSettings() {
+      const enabled = document.getElementById('enableTranslation').checked;
+      const settingsDiv = document.getElementById('translationSettings');
+      
+      if (enabled) {
+        settingsDiv.classList.remove('hidden');
+        // 自动设置目标语言
+        const targetLang = document.getElementById('targetLanguage');
+        if (!targetLang.value) {
+          const sourceLang = languageSelect.value;
+          // 如果是中文，默认翻译为英文；否则翻译为中文
+          targetLang.value = sourceLang === 'zh' ? 'en' : 'zh';
+        }
+      } else {
+        settingsDiv.classList.add('hidden');
+      }
+    }
+
+    function toggleRefinementSettings() {
+      const enabled = document.getElementById('enableRefinement').checked;
+      const settingsDiv = document.getElementById('refinementSettings');
+      
+      if (enabled) {
+        settingsDiv.classList.remove('hidden');
+      } else {
+        settingsDiv.classList.add('hidden');
+      }
+    }
+    
+    function toggleModelManagement() {
+      const panel = document.getElementById('modelManagementPanel');
+      const icon = document.getElementById('modelManagementIcon');
+      
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+      } else {
+        panel.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+      }
     }
 
     function showSaveModal() {
@@ -663,30 +1483,56 @@
     }
 
     function generateTXT() {
+      const hasTranslation = subtitles.some(s => s.translation);
+      
       return subtitles.map(s => {
         const time = new Date(s.timestamp).toLocaleString();
-        return `[${time}] ${s.text}`;
+        let text = `[${time}] ${s.text}`;
+        
+        if (hasTranslation && s.translation) {
+          text += `\n           ${s.translation}`;
+        }
+        
+        return text;
       }).join('\n\n');
     }
 
     function generateVTT() {
       let vtt = 'WEBVTT\n\n';
+      const hasTranslation = subtitles.some(s => s.translation);
+      
       subtitles.forEach((s, index) => {
-        const start = new Date(s.timestamp).toISOString().substr(11, 8);
-        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 8);
-        vtt += `${index + 1}\n${start}.000 --> ${end}.000\n${s.text}\n\n`;
+        const start = new Date(s.timestamp).toISOString().substr(11, 12);
+        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 12);
+        
+        vtt += `${index + 1}\n${start} --> ${end}\n${s.text}`;
+        
+        if (hasTranslation && s.translation) {
+          vtt += `\n${s.translation}`;
+        }
+        
+        vtt += '\n\n';
       });
       return vtt;
     }
 
     function generateSRT() {
-      return subtitles.map((s, index) => {
-        const startIso = new Date(s.timestamp).toISOString();
-        const endIso = new Date(s.timestamp + 5000).toISOString();
-        const start = `${startIso.substr(11, 8)},${startIso.substr(20, 3)}`;
-        const end = `${endIso.substr(11, 8)},${endIso.substr(20, 3)}`;
-        return `${index + 1}\n${start} --> ${end}\n${s.text}\n`;
-      }).join('\n');
+      let srt = '';
+      const hasTranslation = subtitles.some(s => s.translation);
+      
+      subtitles.forEach((s, index) => {
+        const start = new Date(s.timestamp).toISOString().substr(11, 12).replace('.', ',');
+        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 12).replace('.', ',');
+        
+        srt += `${index + 1}\n${start} --> ${end}\n${s.text}`;
+        
+        if (hasTranslation && s.translation) {
+          srt += `\n${s.translation}`;
+        }
+        
+        srt += '\n\n';
+      });
+      return srt;
     }
 
     document.addEventListener('DOMContentLoaded', init);
@@ -750,6 +1596,144 @@
 
     window.deleteSubtitle = deleteSubtitle;
     window.updateModelOptions = updateModelOptions;
+    
+    // 测试函数：添加测试字幕
+    window.testAddSubtitle = function() {
+      console.log('🧪 测试添加字幕...');
+      console.log('📦 subtitleArea:', document.getElementById('subtitleArea'));
+      addSubtitle('这是一个测试字幕 This is a test subtitle', Date.now());
+      
+      // 延迟1秒后检查DOM
+      setTimeout(() => {
+        const area = document.getElementById('subtitleArea');
+        console.log('🔍 延迟检查 - 字幕区域子元素数:', area.children.length);
+        console.log('🔍 延迟检查 - 字幕区域HTML长度:', area.innerHTML.length);
+        console.log('🔍 延迟检查 - 字幕项数量:', area.querySelectorAll('.subtitle-item').length);
+        
+        if (area.children.length === 0 || area.querySelectorAll('.subtitle-item').length === 0) {
+          console.error('❌ 字幕元素没有被添加到DOM！');
+          console.log('📋 当前subtitleArea内容:', area.innerHTML);
+        } else {
+          console.log('✅ 字幕元素已成功添加！');
+        }
+      }, 1000);
+    };
+    
+    // 批量优化所有字幕
+    window.batchRefineAllSubtitles = async function() {
+      const enableRefinement = document.getElementById('enableRefinement')?.checked;
+      if (!enableRefinement) {
+        alert('请先启用"字幕优化"功能！');
+        return;
+      }
+      
+      if (subtitles.length === 0) {
+        alert('没有字幕可以优化！');
+        return;
+      }
+      
+      const model = document.getElementById('refinementModel')?.value || 'Qwen/Qwen3-1.7B';
+      const language = languageSelect.value;
+      const enableDeepThinking = document.getElementById('enableDeepThinking')?.checked || false;
+      
+      // 询问用户确认
+      const modeText = enableDeepThinking ? '深度思考模式（较慢但质量高）' : '标准模式';
+      if (!confirm(`即将使用 ${model} 优化 ${subtitles.length} 条字幕。\n模式：${modeText}\n这可能需要几分钟时间，是否继续？`)) {
+        return;
+      }
+      
+      const btn = document.getElementById('batchRefineBtn');
+      const originalText = btn.innerHTML;
+      
+      try {
+        // 显示进度
+        btn.disabled = true;
+        const progressText = enableDeepThinking ? '深度优化中...' : '优化中...';
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="ml-2">${progressText}</span>`;
+        
+        console.log('🚀 开始批量优化:', {
+          count: subtitles.length,
+          model: model,
+          language: language,
+          deepThinking: enableDeepThinking
+        });
+        
+        // 发送批量优化请求
+        const response = await fetch('/api/batch_refine_subtitles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subtitles: subtitles.map(s => ({ text: s.text })),
+            model: model,
+            language: language,
+            task: 'refine',
+            enable_thinking: enableDeepThinking  // 新增参数
+          })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || '优化失败');
+        }
+        
+        const data = await response.json();
+        console.log('✅ 批量优化完成:', data);
+        
+        // 更新UI显示优化后的字幕
+        if (data.success && data.results) {
+          for (const result of data.results) {
+            const subtitle = subtitles[result.index];
+            if (subtitle && result.refined !== result.original) {
+              // 更新数据
+              subtitle.text = result.refined;
+              
+              // 更新DOM显示
+              const subtitleElement = document.querySelector(`[data-id="${subtitle.id}"]`);
+              if (subtitleElement) {
+                const originalDiv = subtitleElement.querySelector('.original-text p');
+                if (originalDiv) {
+                  // 保留翻译部分，只更新原文
+                  const hasTranslation = subtitleElement.querySelector('.translation-text');
+                  originalDiv.innerHTML = `${escapeHtml(result.refined)} <span class="text-xs text-green-600">✨</span>`;
+                  
+                  // 如果有翻译，也重新翻译
+                  if (hasTranslation) {
+                    const targetLang = document.getElementById('targetLanguage')?.value;
+                    if (targetLang) {
+                      const translatedText = await translateText(result.refined, targetLang);
+                      hasTranslation.querySelector('p').innerHTML = 
+                        `${escapeHtml(translatedText)} <span class="text-xs">🌐</span>`;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          alert(`✅ 优化完成！\n共处理 ${data.results.length} 条字幕`);
+        }
+        
+      } catch (error) {
+        console.error('❌ 批量优化失败:', error);
+        alert(`优化失败: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    };
+    
+    // 测试函数：检查subtitleArea状态
+    window.checkSubtitleArea = function() {
+      const area = document.getElementById('subtitleArea');
+      console.log('📊 subtitleArea 检查:');
+      console.log('  - 存在:', !!area);
+      console.log('  - ID:', area?.id);
+      console.log('  - 类名:', area?.className);
+      console.log('  - 子元素数:', area?.children.length);
+      console.log('  - HTML长度:', area?.innerHTML.length);
+      console.log('  - 字幕项数:', area?.querySelectorAll('.subtitle-item').length);
+      return area;
+    };
   </script>
 </body>
 </html>

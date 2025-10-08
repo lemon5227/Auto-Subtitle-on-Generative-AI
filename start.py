@@ -1,23 +1,78 @@
 #!/usr/bin/env python3
 """
-智能跨平台启动脚本 - Auto Subtitle Generator
-✨ 自动检测环境、安装依赖、配置加速
-🚀 支持 Linux (丝滑一键部署) / macOS / Windows
+智能启动器 - AI 字幕生成器
+🚀 自动检测并优化 NVIDIA / AMD / Apple Silicon / CPU 环境
 """
-
-import sys
-import platform
-import subprocess
-import shutil
 import os
-import json
+import sys
+import subprocess
+import logging
 from pathlib import Path
 
-def check_system():
-    """检测系统信息"""
-    system = platform.system()
-    machine = platform.machine()
-    python_version = sys.version_info
+# 设置日志
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
+
+def print_header():
+    """打印启动头部"""
+    print("🚀 AI 字幕生成器 - 智能启动器")
+    print("=" * 60)
+    print("🎯 自动检测最佳计算设备并优化性能配置")
+    print("� 支持: NVIDIA CUDA / AMD ROCm / Apple MPS / CPU")
+    print("=" * 60)
+
+def check_dependencies():
+    """检查基础依赖"""
+    try:
+        import torch
+        import whisper
+        import flask
+        logger.info("✅ 核心依赖检查通过")
+        return True
+    except ImportError as e:
+        logger.error(f"❌ 缺少依赖: {e}")
+        logger.error("💡 请运行: pip install -r requirements.txt")
+        return False
+
+def setup_environment():
+    """设置环境和导入GPU检测"""
+    try:
+        from gpu_detector import GPUDetector, create_device_environment
+        
+        # 创建检测器
+        detector = GPUDetector()
+        
+        # 打印检测报告
+        print("\n🔍 GPU 环境检测:")
+        print("-" * 40)
+        print(f"📊 {detector.get_device_summary()}")
+        
+        # 应用环境变量优化
+        device_env = create_device_environment()
+        for key, value in device_env.items():
+            os.environ[key] = value
+            
+        # 显示关键优化设置
+        device_type = detector.device_info['gpu_type']
+        if device_type == 'nvidia':
+            print("🟢 NVIDIA CUDA 优化已启用")
+        elif device_type == 'amd':
+            print("🔴 AMD ROCm 优化已启用")
+        elif device_type == 'apple':
+            print("🟡 Apple MPS 优化已启用")
+        else:
+            print("🔵 CPU 多线程优化已启用")
+            
+        # 显示优化建议
+        tips = detector.get_optimization_tips()
+        if tips:
+            print(f"💡 {tips[0]}")  # 显示第一个建议
+            
+        return detector
+        
+    except ImportError:
+        logger.warning("⚠️ GPU 检测模块不可用，使用默认配置")
+        return None
     
     print(f"🖥️  系统: {system} {platform.release()}")
     print(f"🔧 架构: {machine}")

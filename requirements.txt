@@ -23,7 +23,7 @@ Flask-SocketIO>=5.0
 python-socketio>=5.0
 python-engineio>=4.0
 openai-whisper
-transformers
+transformers>=4.37.0
 accelerate
 sentencepiece
 huggingface-hub
@@ -37,6 +37,14 @@ numpy
 # Optional but recommended for much faster transcription on supported hardware
 # Install only if your platform supports it and you meet its requirements
 faster-whisper
+
+# Qwen LLM for intelligent subtitle refinement (optional)
+# Download models from Hugging Face:
+# - Qwen/Qwen2.5-3B-Instruct (recommended, ~6GB)
+# - Qwen/Qwen2.5-7B-Instruct (high quality, ~14GB)
+# - Qwen/Qwen2.5-1.5B-Instruct (lightweight, ~3GB)
+# If not installed, the system will fall back to rule-based refinement
+# Install with: pip install transformers>=4.37.0
 
 # Utilities
 tqdm

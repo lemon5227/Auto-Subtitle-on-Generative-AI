@@ -29,14 +29,17 @@
 
 - 🚀 **实时语音转录** - 支持麦克风实时监听和转录
 - 🎯 **多模型支持** - Whisper Large-v3 Turbo, SenseVoice, Distil-Whisper
+- 🤖 **Qwen3智能校对** - 集成最新Qwen3大模型，专业ASR纠错与翻译
 - 🌍 **多语言识别** - 中文、英文、日语、韩语等
 - 💻 **跨平台支持** - Windows, macOS (含 Apple Silicon), Linux
 - 🎮 **智能GPU检测** - 自动检测并适配 NVIDIA CUDA / AMD ROCm / Apple MPS
 - ⚡ **通用硬件加速** - 有GPU用GPU，无GPU智能回退CPU模式
 - 📹 **视频处理** - 本地文件和 YouTube 视频下载转录
-- 🔄 **字幕翻译** - 基于 Helsinki-NLP 的多语言翻译
+- 🔄 **字幕翻译** - 基于 Helsinki-NLP 和 Qwen3 的多语言翻译
 - 💾 **多格式导出** - VTT, SRT, 纯文本格式
 - 🎨 **现代化界面** - 基于 Tailwind CSS 的响应式设计
+
+> 🆕 **最新更新**: Qwen3系列模型 - 更强的ASR纠错、专业字幕翻译、上下文感知理解！[查看详情](README.qwen3.md)
 
 ## 🖥️ 支持的平台和加速
 

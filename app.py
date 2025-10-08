@@ -62,8 +62,21 @@ try:
         FUNASR_AVAILABLE = False
     SENSEVOICE_AVAILABLE = True
 except Exception:
+    AutoModel = None
+    AutoTokenizer = None
     SENSEVOICE_AVAILABLE = False
     FUNASR_AVAILABLE = False
+
+# Qwen LLM support for intelligent subtitle refinement
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer as QwenTokenizer
+    QWEN_AVAILABLE = True
+    print("✅ Qwen LLM support available for subtitle refinement")
+except Exception:
+    AutoModelForCausalLM = None
+    QwenTokenizer = None
+    QWEN_AVAILABLE = False
+    print("⚠️ Qwen LLM not available, using rule-based refinement")
 
 app = Flask(__name__, static_folder='./save')
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -93,15 +106,570 @@ check_ffmpeg()
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large"]
 # New structure for translation models
 SUPPORTED_TRANSLATION_PAIRS = [
-    {"source": "English", "target": "Chinese", "model": "Helsinki-NLP/opus-mt-en-zh"},
-    {"source": "English", "target": "French", "model": "Helsinki-NLP/opus-mt-en-fr"},
-    {"source": "English", "target": "Spanish", "model": "Helsinki-NLP/opus-mt-en-es"},
-    {"source": "English", "target": "German", "model": "Helsinki-NLP/opus-mt-en-de"},
-    {"source": "Chinese", "target": "English", "model": "Helsinki-NLP/opus-mt-zh-en"},
+    {"source": "en", "target": "zh", "model": "Helsinki-NLP/opus-mt-en-zh", "name": "English to Chinese"},
+    {"source": "en", "target": "fr", "model": "Helsinki-NLP/opus-mt-en-fr", "name": "English to French"},
+    {"source": "en", "target": "es", "model": "Helsinki-NLP/opus-mt-en-es", "name": "English to Spanish"},
+    {"source": "en", "target": "de", "model": "Helsinki-NLP/opus-mt-en-de", "name": "English to German"},
+    {"source": "zh", "target": "en", "model": "Helsinki-NLP/opus-mt-zh-en", "name": "Chinese to English"},
 ]
 
 # In-memory cache for loaded translation pipelines
 translation_pipelines = {}
+
+# Qwen LLM cache for subtitle refinement
+qwen_model = None
+qwen_tokenizer = None
+qwen_model_lock = Lock()
+CURRENT_QWEN_MODEL = None  # 当前加载的Qwen模型ID
+
+# Supported Qwen models for subtitle refinement
+SUPPORTED_QWEN_MODELS = [
+    # 超轻量级模型 - 适合实时翻译和低配置设备
+    {"name": "Qwen3-0.6B", "model_id": "Qwen/Qwen3-0.6B", "size": "0.6B", "recommended": False, "best_for": "realtime"},
+    {"name": "Qwen3-1.7B", "model_id": "Qwen/Qwen3-1.7B", "size": "1.7B", "recommended": True, "best_for": "realtime"},
+    # 标准模型 - 适合字幕优化
+    {"name": "Qwen3-4B", "model_id": "Qwen/Qwen3-4B", "size": "4B", "recommended": True, "best_for": "refinement"},
+    {"name": "Qwen3-8B", "model_id": "Qwen/Qwen3-8B", "size": "8B", "recommended": False, "best_for": "refinement"},
+]
+
+# 专业字幕校对Prompt模板 - 优化版本适配Qwen3
+SUBTITLE_REFINEMENT_PROMPTS = {
+    'zh': {
+        'system': """你是一个专业的ASR（自动语音识别）字幕校对专家，专注于修正语音识别错误。
+
+**核心任务**：
+1. **同音字/近音字纠错**：识别并修正同音或近音导致的错误
+   示例：在座→再做 | 有到礼→有道理 | 意建→意见 | 机器学习→机器学习
+
+2. **词语边界修正**：正确识别词语边界，修正分词错误
+   示例：人工只能→人工智能 | 机器学习→机器学习
+
+3. **语法修正**：修正明显的语法错误
+   示例：他的很高兴→他很高兴 | 应该要→应该
+
+4. **口语转书面**：适度优化口语表达
+   - 去除："嗯、啊、呃、那个、这个、就是说"等填充词
+   - 保留：必要的语气词和说话风格
+
+5. **标点规范**：添加或修正标点符号，提升可读性
+
+**重要原则**：
+✓ 只修正明确的ASR错误，不过度改写
+✓ 保持原意和说话风格
+✓ 利用上下文理解语义
+✓ 不添加原文不存在的内容
+✓ 不确定时保持原样
+
+**输出要求**：
+- 直接输出修正后的字幕
+- 不要包含任何解释、分析或思考过程
+- 不要使用<think>标签或其他标记
+- 不要添加"修正后："等前缀
+- 只输出最终结果""",
+        
+        'user_with_context': """【上下文对话】
+{context}
+
+【当前字幕】
+{text}
+
+根据上下文，修正上述字幕的ASR错误。直接输出修正结果：""",
+        
+        'user_no_context': """【需要校对的字幕】
+{text}
+
+修正上述字幕的ASR错误。直接输出修正结果："""
+    },
+    
+    'en': {
+        'system': """You are a professional ASR (Automatic Speech Recognition) subtitle proofreader specializing in correcting speech recognition errors.
+
+**Core Tasks**:
+1. **Homophone Correction**: Identify and fix errors caused by homophones
+   Examples: their→there | two→to | your→you're
+
+2. **Word Boundary Correction**: Fix word segmentation errors
+   Examples: alot→a lot | cannot→can not (when appropriate)
+
+3. **Grammar Correction**: Fix obvious grammatical errors
+   Examples: he don't→he doesn't | was went→went
+
+4. **Colloquial to Formal**: Moderate optimization
+   - Remove: "um, uh, like, you know, I mean" (excessive fillers)
+   - Preserve: Natural speaking style and necessary tone
+
+5. **Punctuation**: Add or correct punctuation for clarity
+
+**Important Principles**:
+✓ Only fix clear ASR errors, don't over-edit
+✓ Maintain original meaning and speaking style
+✓ Use context to understand semantics
+✓ Don't add content not in original speech
+✓ When uncertain, keep original
+
+**Output Requirements**:
+- Output the corrected subtitle directly
+- No explanations, analysis, or thinking process
+- No <think> tags or other markers
+- No prefixes like "Corrected:" or "Result:"
+- Only output the final result""",
+        
+        'user_with_context': """[Context Dialogue]
+{context}
+
+[Current Subtitle]
+{text}
+
+Based on context, correct ASR errors in the subtitle. Output result directly:""",
+        
+        'user_no_context': """[Subtitle to Proofread]
+{text}
+
+Correct ASR errors in the subtitle. Output result directly:"""
+    }
+}
+
+# 翻译专用Prompt模板
+TRANSLATION_PROMPTS = {
+    'zh_to_en': {
+        'system': """You are a professional subtitle translator. Translate Chinese subtitles to English directly and concisely.
+
+Rules:
+- Output ONLY the English translation
+- No explanation, no thinking process
+- Keep it natural and concise
+- Preserve the tone and emotion""",
+        
+        'user': """Translate to English:
+{text}"""
+    },
+    
+    'en_to_zh': {
+        'system': """你是专业字幕翻译助手。直接输出简洁的中文翻译。
+
+规则：
+- 只输出中文翻译
+- 不要解释、不要思考过程
+- 保持自然流畅
+- 保留语气和情感""",
+        
+        'user': """翻译成中文：
+{text}"""
+    }
+}
+
+def get_qwen_model(model_id="Qwen/Qwen3-4B"):
+    """加载Qwen模型用于字幕校对和翻译
+    
+    支持模型：
+    - Qwen3-4B (推荐)
+    - Qwen3-8B (高质量)
+    - Qwen2.5系列 (向后兼容)
+    """
+    global qwen_model, qwen_tokenizer
+    
+    with qwen_model_lock:
+        if qwen_model is not None and qwen_tokenizer is not None:
+            return qwen_model, qwen_tokenizer
+        
+        if not QWEN_AVAILABLE:
+            print("❌ Qwen模型不可用")
+            return None, None
+        
+        try:
+            print(f"🔄 加载Qwen3模型: {model_id}")
+            
+            # 加载tokenizer
+            qwen_tokenizer = QwenTokenizer.from_pretrained(
+                model_id,
+                trust_remote_code=True
+            )
+            
+            # 加载模型，针对Qwen3优化
+            load_kwargs = {
+                "trust_remote_code": True,
+                "low_cpu_mem_usage": True,  # 减少内存使用
+            }
+            
+            # 根据设备和模型大小选择精度
+            if DEVICE != 'cpu':
+                # GPU模式：使用FP16节省显存
+                load_kwargs["torch_dtype"] = torch.float16
+                # 不使用device_map避免accelerate设备冲突
+            else:
+                # CPU模式：使用FP32保证精度
+                load_kwargs["torch_dtype"] = torch.float32
+            
+            qwen_model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                **load_kwargs
+            )
+            
+            # 手动将模型移动到目标设备
+            qwen_model = qwen_model.to(DEVICE)
+            qwen_model.eval()
+            
+            print(f"✅ Qwen3模型加载成功: {model_id}")
+            print(f"   设备: {DEVICE}")
+            print(f"   模型实际设备: {next(qwen_model.parameters()).device}")
+            print(f"   精度: {next(qwen_model.parameters()).dtype}")
+            
+            return qwen_model, qwen_tokenizer
+            
+        except Exception as e:
+            print(f"❌ Qwen模型加载失败: {e}")
+            qwen_model = None
+            qwen_tokenizer = None
+            return None, None
+
+def refine_subtitle_with_qwen(text, context=None, language='zh', enable_thinking=False):
+    """使用Qwen模型智能校对字幕
+    
+    Args:
+        text: 需要校对的字幕文本
+        context: 上下文字幕列表（可选）
+        language: 语言代码 (zh, en, ja, ko)
+        enable_thinking: 是否启用深度思考模式
+    
+    Returns:
+        校对后的文本
+    """
+    model, tokenizer = get_qwen_model()
+    
+    if model is None or tokenizer is None:
+        return text
+    
+    try:
+        # 获取语言对应的prompt模板
+        lang_key = 'zh' if language in ['zh', 'zh-CN', 'zh-TW'] else 'en'
+        prompts = SUBTITLE_REFINEMENT_PROMPTS.get(lang_key, SUBTITLE_REFINEMENT_PROMPTS['en'])
+        
+        # 构建系统提示词 - 根据思考模式调整
+        system_prompt = prompts['system']
+        if enable_thinking:
+            # 深度思考模式：允许使用<think>标签
+            thinking_instruction = "\n\n**思考模式**：你可以使用<think>标签进行深度分析和推理，然后在</think>标签后输出最终结果。" if lang_key == 'zh' else "\n\n**Thinking Mode**: You can use <think> tags for deep analysis and reasoning, then output the final result after </think>."
+            system_prompt += thinking_instruction
+        
+        # 构建用户提示词
+        if context and len(context) > 0:
+            # 过滤掉空字符串和过长的上下文
+            valid_context = [c.strip() for c in context[-3:] if c.strip()]
+            if valid_context:
+                context_text = "\n".join([f"{i+1}. {c}" for i, c in enumerate(valid_context)])
+                user_prompt = prompts['user_with_context'].format(
+                    context=context_text,
+                    text=text
+                )
+            else:
+                user_prompt = prompts['user_no_context'].format(text=text)
+        else:
+            user_prompt = prompts['user_no_context'].format(text=text)
+        
+        # 构建消息
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        # 生成
+        text_input = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        
+        model_inputs = tokenizer([text_input], return_tensors="pt")
+        
+        if DEVICE != 'cpu':
+            model_inputs = model_inputs.to(DEVICE)
+        
+        with torch.no_grad():
+            generated_ids = model.generate(
+                model_inputs.input_ids,
+                max_new_tokens=128,   # 校对通常不需要太长
+                temperature=0.1,      # 极低温度，减少随机性和思考过程
+                top_p=0.9,
+                do_sample=True,
+                repetition_penalty=1.2,
+                pad_token_id=tokenizer.pad_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+            )
+        
+        # 解码输出
+        generated_ids = [
+            output_ids[len(input_ids):] 
+            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        
+        response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        print(f"   🔍 Qwen原始输出: {repr(response[:200])}")
+        
+        # 清理输出
+        refined_text = response.strip()
+        
+        # 处理思考标签
+        if '<think>' in refined_text:
+            if enable_thinking:
+                # 思考模式：保留思考过程并记录
+                print(f"   🧠 深度思考模式：检测到思考过程")
+                # 提取思考内容和最终结果
+                think_start = refined_text.find('<think>')
+                think_end = refined_text.find('</think>')
+                if think_start >= 0 and think_end >= 0:
+                    thinking_process = refined_text[think_start+7:think_end].strip()
+                    print(f"   💭 思考过程: {thinking_process[:100]}...")
+                    # 提取结果（</think>之后的内容）
+                    refined_text = refined_text[think_end+8:].strip()
+                    print(f"   ✅ 提取结果: {refined_text[:100]}")
+                else:
+                    # 没有闭合标签，移除think标签
+                    refined_text = refined_text.replace('<think>', '').strip()
+            else:
+                # 普通模式：直接移除思考标签
+                print(f"   ⚠️ 标准模式：检测到意外的<think>标签，正在清理...")
+                # 如果有思考标签，提取标签后的内容
+                parts = refined_text.split('</think>')
+                if len(parts) > 1:
+                    refined_text = parts[1].strip()
+                else:
+                    # 如果没有闭合标签，移除开始标签及其内容
+                    think_start = refined_text.find('<think>')
+                    if think_start >= 0:
+                        refined_text = refined_text[:think_start].strip()
+                print(f"   ✂️ 清理后: {repr(refined_text[:100])}")
+        
+        # 移除可能的引号包裹
+        if refined_text.startswith('"') and refined_text.endswith('"'):
+            refined_text = refined_text[1:-1]
+        if refined_text.startswith("'") and refined_text.endswith("'"):
+            refined_text = refined_text[1:-1]
+        
+        # 移除可能的"修正后："等前缀
+        prefixes_to_remove = ['修正后：', '修正后:', '校对后：', '校对后:', 'Corrected:', 'Corrected：', 'Refined:', 'Refined：']
+        for prefix in prefixes_to_remove:
+            if refined_text.startswith(prefix):
+                refined_text = refined_text[len(prefix):].strip()
+                print(f"   ✂️ 移除前缀: {prefix}")
+        
+        # 如果输出为空或异常长，返回原文
+        if not refined_text or len(refined_text) > len(text) * 3:
+            print(f"   ⚠️ Qwen输出异常，使用原文: {refined_text[:50]}...")
+            return text
+        
+        # 如果输出与原文过于相似（只有标点差异），返回优化后的版本
+        import re
+        text_normalized = re.sub(r'[^\w\s]', '', text.lower())
+        refined_normalized = re.sub(r'[^\w\s]', '', refined_text.lower())
+        
+        if text_normalized == refined_normalized:
+            # 只有标点差异，使用Qwen的版本（标点更准确）
+            return refined_text
+        
+        # 检查是否有实质性改进
+        if refined_text.strip() == text.strip():
+            return text
+        
+        print(f"   ✅ Qwen校对完成: '{text}' → '{refined_text}'")
+        return refined_text
+        
+    except Exception as e:
+        print(f"   ❌ Qwen校对错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return text
+
+def translate_with_qwen(text, source_lang='zh', target_lang='en', context=None, model_name=None):
+    """使用Qwen3模型进行字幕翻译
+    
+    Args:
+        text: 需要翻译的文本
+        source_lang: 源语言 (zh, en)
+        target_lang: 目标语言 (zh, en)
+        context: 上下文（可选）
+        model_name: 指定使用的Qwen模型 (qwen3-0.6b, qwen3-1.7b, qwen3-4b, qwen3-8b)
+    
+    Returns:
+        翻译后的文本
+    """
+    # 如果指定了模型，临时切换
+    original_model = None
+    if model_name:
+        # 保存当前模型设置
+        global CURRENT_QWEN_MODEL
+        original_model = CURRENT_QWEN_MODEL
+        
+        # 映射前端模型名到实际模型ID（支持两种格式）
+        model_mapping = {
+            'qwen3-0.6b': 'Qwen/Qwen3-0.6B',
+            'qwen3-1.7b': 'Qwen/Qwen3-1.7B',
+            'qwen3-4b': 'Qwen/Qwen3-4B',
+            'qwen3-8b': 'Qwen/Qwen3-8B',
+            # 也支持完整的模型ID直接传入
+            'Qwen/Qwen3-0.6B': 'Qwen/Qwen3-0.6B',
+            'Qwen/Qwen3-1.7B': 'Qwen/Qwen3-1.7B',
+            'Qwen/Qwen3-4B': 'Qwen/Qwen3-4B',
+            'Qwen/Qwen3-8B': 'Qwen/Qwen3-8B',
+        }
+        
+        model_id = model_mapping.get(model_name, model_name)  # 如果不在映射中，直接使用传入值
+        if model_id and model_id != CURRENT_QWEN_MODEL:
+            # 只在需要切换模型时才清除缓存
+            print(f"   🔄 切换模型: {CURRENT_QWEN_MODEL} → {model_id}")
+            CURRENT_QWEN_MODEL = model_id
+            # 清除缓存，强制重新加载
+            global qwen_model, qwen_tokenizer
+            qwen_model = None
+            qwen_tokenizer = None
+        elif model_id == CURRENT_QWEN_MODEL:
+            print(f"   ♻️ 复用已加载的模型: {model_id}")
+    
+    # 确定要使用的模型ID
+    model_id_to_load = CURRENT_QWEN_MODEL if CURRENT_QWEN_MODEL else "Qwen/Qwen3-4B"
+    
+    print(f"   🔐 准备获取模型锁...")
+    
+    try:
+        # 使用指定的模型或默认模型
+        model, tokenizer = get_qwen_model(model_id_to_load)
+        
+        print(f"   📦 模型加载结果: model={model is not None}, tokenizer={tokenizer is not None}")
+        
+        if model is None or tokenizer is None:
+            print(f"   ❌ 模型或tokenizer为空，返回原文")
+            return text
+        
+        # 确定翻译方向
+        if source_lang == 'zh' and target_lang == 'en':
+            prompt_key = 'zh_to_en'
+        elif source_lang == 'en' and target_lang == 'zh':
+            prompt_key = 'en_to_zh'
+        else:
+            print(f"⚠️ 不支持的翻译方向: {source_lang} → {target_lang}")
+            return text
+        
+        print(f"🔍 翻译调试:")
+        print(f"   源语言: {source_lang}")
+        print(f"   目标语言: {target_lang}")
+        print(f"   Prompt Key: {prompt_key}")
+        print(f"   原文: {text}")
+        
+        # 获取prompt模板
+        prompts = TRANSLATION_PROMPTS.get(prompt_key)
+        if not prompts:
+            print(f"   ❌ 未找到prompt模板: {prompt_key}")
+            return text
+        
+        print(f"   ✅ 找到prompt模板: {prompt_key}")
+        
+        # 构建消息
+        messages = [
+            {"role": "system", "content": prompts['system']},
+            {"role": "user", "content": prompts['user'].format(text=text)}
+        ]
+        
+        print(f"   📋 开始构建chat template...")
+        
+        # 生成
+        text_input = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        
+        print(f"   📝 Prompt构建完成，长度: {len(text_input)}")
+        
+        model_inputs = tokenizer([text_input], return_tensors="pt")
+        
+        if DEVICE != 'cpu':
+            model_inputs = model_inputs.to(DEVICE)
+        
+        print(f"   🎲 开始生成翻译...")
+        print(f"   📊 输入形状: {model_inputs.input_ids.shape}")
+        print(f"   🖥️ 输入设备: {model_inputs.input_ids.device}")
+        print(f"   🤖 模型设备: {next(model.parameters()).device}")
+        
+        try:
+            with torch.no_grad():
+                import time
+                start_time = time.time()
+                
+                generated_ids = model.generate(
+                    model_inputs.input_ids,
+                    max_new_tokens=64,       # 再次降低，加快速度
+                    temperature=0.7,         
+                    top_p=0.9,
+                    do_sample=True,
+                    repetition_penalty=1.2,
+                    pad_token_id=tokenizer.pad_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                )
+                
+                elapsed = time.time() - start_time
+                print(f"   ✨ 生成完成，耗时: {elapsed:.2f}秒")
+        except Exception as gen_error:
+            print(f"   ❌ 生成过程出错: {gen_error}")
+            import traceback
+            traceback.print_exc()
+            raise
+        
+        # 解码输出
+        generated_ids = [
+            output_ids[len(input_ids):] 
+            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        
+        translation = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        print(f"   🔍 生成的原始输出: {repr(translation)}")
+        
+        # 清理输出
+        translation = translation.strip()
+        
+        # 移除Qwen3的思考标签和内容
+        if '<think>' in translation:
+            # 如果有思考标签，提取标签后的内容
+            parts = translation.split('</think>')
+            if len(parts) > 1:
+                translation = parts[1].strip()
+            else:
+                # 如果没有闭合标签，移除开始标签及其内容
+                translation = translation.split('<think>')[0].strip()
+        
+        # 移除可能的引号
+        if translation.startswith('"') and translation.endswith('"'):
+            translation = translation[1:-1]
+        if translation.startswith("'") and translation.endswith("'"):
+            translation = translation[1:-1]
+        
+        # 移除常见前缀
+        prefixes_to_remove = ['翻译：', '翻译:', 'Translation:', 'Translation：', '译文：', '译文:', '中文翻译:', '中文翻译：', '中文：', '英文：']
+        for prefix in prefixes_to_remove:
+            if translation.startswith(prefix):
+                translation = translation[len(prefix):].strip()
+                print(f"   ✂️ 移除前缀: {prefix}")
+                break
+        
+        print(f"   📝 清理后的翻译: {repr(translation)}")
+        
+        # 验证输出
+        if not translation or len(translation) > len(text) * 5:
+            print(f"⚠️ Qwen翻译输出异常")
+            return text
+        
+        print(f"✅ 翻译完成: {target_lang}")
+        return translation
+        
+    except Exception as e:
+        print(f"Qwen翻译错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return text
+    finally:
+        # 不再清空模型缓存，保持模型常驻内存以提高性能
+        # 如果需要切换模型，会在下次调用时自动切换
+        pass
 
 # 智能GPU检测和设备选择系统
 try:
@@ -231,8 +799,20 @@ def get_hf_model_status(model_name):
 def get_translation_pipeline(model_name):
     """Loads a translation pipeline, caching it in memory by model name."""
     if model_name not in translation_pipelines:
-        print(f"Loading translation model: {model_name}")
-        translation_pipelines[model_name] = pipeline("translation", model=model_name)
+        try:
+            print(f"🔄 Loading translation model: {model_name}")
+            translation_pipelines[model_name] = pipeline(
+                "translation", 
+                model=model_name,
+                device=0 if DEVICE == 'cuda' else -1,  # 使用GPU加速
+                max_length=512
+            )
+            print(f"✅ Translation model loaded: {model_name}")
+        except Exception as e:
+            print(f"❌ Failed to load translation model {model_name}: {e}")
+            print(f"💡 提示: 首次使用需要下载模型，可能需要几分钟")
+            print(f"💡 可以使用Qwen3翻译作为替代（如果已安装）")
+            raise
     return translation_pipelines[model_name]
 
 def download_model_in_background(model_type, model_key):
@@ -277,7 +857,7 @@ def get_realtime_model(model_name, language='zh'):
             if model_name == 'sensevoice':
                 # Use SenseVoice for Chinese
                 if SENSEVOICE_AVAILABLE and language == 'zh':
-                    device = get_device()
+                    device = DEVICE
                     model_id = "FunAudioLLM/SenseVoiceSmall"
                     model_loaded = False
                     
@@ -341,7 +921,7 @@ def get_realtime_model(model_name, language='zh'):
             elif model_name == 'large-v3-turbo':
                 # Use Whisper Large-v3 Turbo with optimized pipeline
                 if DISTIL_AVAILABLE:  # We use the same transformers library
-                    device = get_device()
+                    device = DEVICE
                     # 使用 float16 for CUDA/MPS，float32 for CPU
                     torch_dtype = torch.float16 if device in ['cuda', 'mps'] else torch.float32
                     
@@ -373,7 +953,7 @@ def get_realtime_model(model_name, language='zh'):
             elif model_name.startswith('distil-'):
                 # Use distil-whisper with consistent dtype
                 if DISTIL_AVAILABLE:
-                    device = get_device()
+                    device = DEVICE
                     # Force float32 to avoid dtype mismatch (MPS doesn't support float16 for some models)
                     torch_dtype = torch.float32
                     model_id = f"distil-whisper/{model_name}"
@@ -514,7 +1094,7 @@ def process_realtime_audio(sid, audio_queue, model, language, model_name):
                                 result = model(
                                     buffer_array,
                                     chunk_length_s=30,  # 30秒分块
-                                    batch_size=8 if get_device() in ['cuda', 'mps'] else 2,
+                                    batch_size=8 if DEVICE in ['cuda', 'mps'] else 2,
                                     return_timestamps=False  # 实时转录不需要时间戳
                                 )
                                 transcription = result.get("text", "") if isinstance(result, dict) else ""
@@ -595,32 +1175,39 @@ def process_realtime_audio(sid, audio_queue, model, language, model_name):
 # WebSocket event handlers
 @socketio.on('connect')
 def handle_connect():
-    print(f"Client connected: {request.sid}")
-    socketio.emit('connected', {'status': 'success'})
+    try:
+        print(f"Client connected: {request.sid}")
+        return {'status': 'success'}
+    except Exception as e:
+        print(f"Connect error: {e}")
+        return {'status': 'error', 'message': str(e)}
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f"Client disconnected: {request.sid}")
-    sid = request.sid
+    try:
+        print(f"Client disconnected: {request.sid}")
+        sid = request.sid
 
-    # Stop real-time transcription for this client
-    lock = realtime_locks.get(sid)
-    if lock is None:
-        lock = threading.Lock()
-        realtime_locks[sid] = lock
+        # Stop real-time transcription for this client
+        lock = realtime_locks.get(sid)
+        if lock is None:
+            lock = threading.Lock()
+            realtime_locks[sid] = lock
 
-    with lock:
-        if sid in realtime_audio_queues:
-            try:
-                realtime_audio_queues[sid].put(None)
-            except Exception:
-                pass
-        if sid in realtime_threads:
-            realtime_threads[sid].join(timeout=2.0)
-            realtime_threads.pop(sid, None)
-        realtime_audio_queues.pop(sid, None)
+        with lock:
+            if sid in realtime_audio_queues:
+                try:
+                    realtime_audio_queues[sid].put(None)
+                except Exception:
+                    pass
+            if sid in realtime_threads:
+                realtime_threads[sid].join(timeout=2.0)
+                realtime_threads.pop(sid, None)
+            realtime_audio_queues.pop(sid, None)
 
-    realtime_locks.pop(sid, None)
+        realtime_locks.pop(sid, None)
+    except Exception as e:
+        print(f"Disconnect error: {e}")
 
 @socketio.on('start_transcription')
 def handle_start_transcription(data):
@@ -1275,6 +1862,466 @@ def format_time(seconds):
     s = int(seconds % 60)
     ms = int((seconds - int(seconds)) * 1000)
     return f"{h:02}:{m:02}:{s:02}.{ms:03}"
+
+# 实时字幕翻译API
+@app.route('/api/translate', methods=['POST'])
+def api_translate():
+    """实时字幕翻译接口 - 支持Helsinki-NLP和Qwen3模型"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        source_lang = data.get('source_lang', 'auto')
+        target_lang = data.get('target_lang', 'en')
+        use_qwen = data.get('use_qwen', False)  # 是否使用Qwen3翻译
+        qwen_model = data.get('qwen_model', None)  # 指定Qwen模型
+        
+        print(f"\n{'='*60}")
+        print(f"📥 翻译请求:")
+        print(f"   原文: {text}")
+        print(f"   源语言: {source_lang}")
+        print(f"   目标语言: {target_lang}")
+        print(f"   使用Qwen: {use_qwen}")
+        print(f"   指定模型: {qwen_model}")
+        print(f"{'='*60}\n")
+        
+        if not text or not target_lang:
+            return jsonify({'error': '缺少必需参数'}), 400
+        
+        # 如果启用Qwen且可用，优先使用Qwen3翻译
+        if use_qwen and QWEN_AVAILABLE:
+            try:
+                translated_text = translate_with_qwen(
+                    text, 
+                    source_lang=source_lang if source_lang != 'auto' else 'zh',
+                    target_lang=target_lang,
+                    model_name=qwen_model  # 传递指定的模型
+                )
+                return jsonify({
+                    'translated_text': translated_text,
+                    'source_lang': source_lang,
+                    'target_lang': target_lang,
+                    'method': 'qwen3',
+                    'qwen_model': qwen_model or 'default'
+                })
+            except Exception as e:
+                print(f"Qwen翻译失败，尝试使用Helsinki-NLP: {e}")
+        
+        # 使用Helsinki-NLP翻译模型
+        # 找到对应的翻译模型
+        model_name = None
+        for pair in SUPPORTED_TRANSLATION_PAIRS:
+            if pair['source'] == source_lang and pair['target'] == target_lang:
+                model_name = pair['model']
+                break
+        
+        if not model_name:
+            return jsonify({'error': f'不支持从 {source_lang} 到 {target_lang} 的翻译'}), 400
+        
+        # 获取翻译模型
+        print(f"🔍 使用Helsinki-NLP模型: {model_name}")
+        try:
+            translator = get_translation_pipeline(model_name)
+            if not translator:
+                raise Exception("翻译模型加载失败")
+            
+            # 执行翻译
+            print(f"📝 开始Helsinki-NLP翻译...")
+            translated = translator(text, max_length=512)
+            translated_text = translated[0]['translation_text'] if translated else text
+            
+            print(f"✅ Helsinki-NLP翻译完成: {translated_text}")
+            
+            return jsonify({
+                'translated_text': translated_text,
+                'source_lang': source_lang,
+                'target_lang': target_lang,
+                'method': 'helsinki-nlp',
+                'model': model_name
+            })
+        except Exception as e:
+            print(f"❌ Helsinki-NLP翻译失败: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # 提供更友好的错误消息
+            error_msg = str(e)
+            if "Connection" in error_msg or "download" in error_msg.lower():
+                error_msg = "翻译模型下载中，请稍候重试。首次使用需要下载模型文件（约500MB）"
+            
+            return jsonify({
+                'error': f'翻译失败: {error_msg}',
+                'suggestion': '可以尝试使用Qwen翻译（在高级设置中启用）'
+            }), 500
+        
+    except Exception as e:
+        print(f"翻译API错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+# 字幕优化API
+@app.route('/api/refine_subtitle', methods=['POST'])
+def refine_subtitle():
+    """字幕质量优化接口 - 支持本地规则优化和Qwen智能校对"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        model = data.get('model', 'local')  # local, qwen-3b, qwen-7b
+        options = data.get('options', {})
+        context = data.get('context', [])  # 上下文字幕
+        language = data.get('language', 'zh')
+        
+        if not text:
+            return jsonify({'error': '缺少文本'}), 400
+        
+        refined_text = text
+        
+        # 本地规则优化（快速，总是先执行）
+        if options.get('remove_fillers', True):
+            # 去除常见的口语填充词
+            if language == 'zh':
+                fillers = ['嗯', '啊', '呃', '那个', '这个', '就是说', '然后']
+            else:
+                fillers = ['um', 'uh', 'like', 'you know', 'I mean']
+            for filler in fillers:
+                refined_text = refined_text.replace(filler, '')
+        
+        if options.get('fix_punctuation', True):
+            # 修正标点符号
+            import re
+            # 移除多余空格
+            refined_text = re.sub(r'\s+', ' ', refined_text)
+            # 确保句子结尾有标点
+            if refined_text and not refined_text[-1] in '.!?。！？':
+                refined_text += '。' if any('\u4e00' <= c <= '\u9fff' for c in refined_text) else '.'
+            # 修正空格和标点
+            refined_text = re.sub(r'\s+([,.!?;:。，！？；：])', r'\1', refined_text)
+        
+        if options.get('format_segments', True):
+            refined_text = refined_text.strip()
+        
+        # Qwen智能校对（如果启用且fix_grammar开启）
+        if options.get('fix_grammar', True) and model.startswith('qwen') and QWEN_AVAILABLE:
+            try:
+                # 确定模型ID - 支持Qwen3和Qwen2.5
+                if model == 'qwen3-4b':
+                    model_id = "Qwen/Qwen3-4B"
+                elif model == 'qwen3-8b':
+                    model_id = "Qwen/Qwen3-8B"
+                elif model == 'qwen-3b':
+                    model_id = "Qwen/Qwen2.5-3B-Instruct"
+                elif model == 'qwen-7b':
+                    model_id = "Qwen/Qwen2.5-7B-Instruct"
+                elif model == 'qwen-1.5b':
+                    model_id = "Qwen/Qwen2.5-1.5B-Instruct"
+                else:
+                    model_id = "Qwen/Qwen3-4B"  # 默认使用最新Qwen3-4B
+                
+                # 先加载模型（如果还没加载）
+                get_qwen_model(model_id)
+                
+                # 使用Qwen校对
+                refined_text = refine_subtitle_with_qwen(
+                    refined_text, 
+                    context=context,
+                    language=language
+                )
+            except Exception as e:
+                print(f"Qwen校对失败，使用规则优化结果: {e}")
+        
+        return jsonify({
+            'refined_text': refined_text,
+            'original_text': text,
+            'model': model,
+            'qwen_available': QWEN_AVAILABLE
+        })
+        
+    except Exception as e:
+        print(f"字幕优化错误: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batch_refine_subtitles', methods=['POST'])
+def batch_refine_subtitles():
+    """批量优化字幕 - 使用Qwen模型和完整上下文进行高质量优化"""
+    try:
+        data = request.get_json()
+        subtitles = data.get('subtitles', [])  # 完整的字幕列表
+        model_name = data.get('model', 'Qwen/Qwen3-1.7B')  # Qwen模型ID
+        language = data.get('language', 'zh')
+        task = data.get('task', 'refine')  # refine (校对) 或 translate (翻译)
+        target_lang = data.get('target_lang', 'zh')  # 翻译目标语言
+        enable_thinking = data.get('enable_thinking', False)  # 是否启用深度思考模式
+        
+        if not subtitles or len(subtitles) == 0:
+            return jsonify({'error': '没有字幕需要优化'}), 400
+        
+        print(f"\n{'='*60}")
+        print(f"📦 批量优化请求:")
+        print(f"   字幕数量: {len(subtitles)}")
+        print(f"   任务类型: {task}")
+        print(f"   模型: {model_name}")
+        print(f"   语言: {language}")
+        print(f"   思考模式: {'🧠 启用' if enable_thinking else '⚡ 禁用'}")
+        if task == 'translate':
+            print(f"   目标语言: {target_lang}")
+        print(f"{'='*60}\n")
+        
+        # 确保模型已加载
+        model, tokenizer = get_qwen_model(model_name)
+        if not model or not tokenizer:
+            return jsonify({'error': 'Qwen模型加载失败'}), 500
+        
+        results = []
+        
+        # 为每条字幕提供上下文进行优化
+        for i, subtitle in enumerate(subtitles):
+            try:
+                text = subtitle.get('text', '')
+                if not text:
+                    results.append({'original': text, 'refined': text})
+                    continue
+                
+                # 获取上下文（前3条字幕）
+                context = []
+                for j in range(max(0, i-3), i):
+                    context_text = subtitles[j].get('text', '')
+                    if context_text:
+                        context.append(context_text)
+                
+                print(f"\n   📝 处理字幕 [{i+1}/{len(subtitles)}]:")
+                print(f"      原文: {text}")
+                if context:
+                    print(f"      上下文: {len(context)}条 - {context}")
+                
+                # 根据任务类型调用不同的函数
+                if task == 'translate':
+                    refined_text = translate_with_qwen(
+                        text,
+                        source_lang=language,
+                        target_lang=target_lang,
+                        context=context,
+                        model_name=model_name
+                    )
+                else:  # refine
+                    refined_text = refine_subtitle_with_qwen(
+                        text,
+                        context=context,
+                        language=language,
+                        enable_thinking=enable_thinking  # 传递思考模式参数
+                    )
+                
+                print(f"      结果: {refined_text}")
+                
+                results.append({
+                    'original': text,
+                    'refined': refined_text,
+                    'index': i
+                })
+                
+                # 每10条打印一次进度
+                if (i + 1) % 10 == 0:
+                    print(f"   ✅ 已处理 {i + 1}/{len(subtitles)} 条字幕")
+                    
+            except Exception as e:
+                print(f"   ⚠️ 处理第 {i+1} 条字幕出错: {e}")
+                results.append({
+                    'original': subtitle.get('text', ''),
+                    'refined': subtitle.get('text', ''),
+                    'error': str(e),
+                    'index': i
+                })
+        
+        print(f"\n✅ 批量优化完成！共处理 {len(results)} 条字幕\n")
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'model': model_name,
+            'task': task
+        })
+        
+    except Exception as e:
+        print(f"批量优化错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/qwen_models', methods=['GET'])
+def get_qwen_models():
+    """获取支持的Qwen模型列表"""
+    return jsonify({
+        'available': QWEN_AVAILABLE,
+        'models': SUPPORTED_QWEN_MODELS
+    })
+
+@app.route('/api/qwen_models/list', methods=['GET'])
+def list_qwen_models():
+    """获取模型列表及下载状态"""
+    import os
+    from pathlib import Path
+    
+    cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+    
+    models_with_status = []
+    for model in SUPPORTED_QWEN_MODELS:
+        model_copy = model.copy()
+        
+        # 检查模型是否已下载
+        # HuggingFace会把 "/" 替换成 "--"
+        model_dir_name = f"models--{model['model_id'].replace('/', '--')}"
+        model_path = cache_dir / model_dir_name
+        
+        if model_path.exists():
+            model_copy['path'] = str(model_path)
+            model_copy['downloaded'] = True
+        else:
+            model_copy['path'] = None
+            model_copy['downloaded'] = False
+        
+        models_with_status.append(model_copy)
+    
+    return jsonify({
+        'models': models_with_status,
+        'cache_dir': str(cache_dir)
+    })
+
+@app.route('/api/qwen_models/download', methods=['POST'])
+def download_qwen_model_api():
+    """下载Qwen模型"""
+    import threading
+    
+    data = request.get_json()
+    model_id = data.get('model_id')
+    device = data.get('device', 'auto')
+    use_fp16 = data.get('use_fp16', False)
+    
+    if not model_id:
+        return jsonify({'error': '缺少model_id参数'}), 400
+    
+    # 启动后台下载线程
+    def download_in_background():
+        global download_status
+        download_status[model_id] = {
+            'progress': 0,
+            'status': '开始下载...',
+            'completed': False,
+            'error': None
+        }
+        
+        try:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            import torch
+            
+            # 更新状态
+            download_status[model_id]['progress'] = 10
+            download_status[model_id]['status'] = '下载Tokenizer...'
+            
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_id,
+                trust_remote_code=True
+            )
+            
+            download_status[model_id]['progress'] = 40
+            download_status[model_id]['status'] = '下载模型权重...'
+            
+            # 确定设备和精度
+            if device == 'auto':
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            
+            dtype = torch.float16 if use_fp16 and device == 'cuda' else torch.float32
+            
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                torch_dtype=dtype,
+                device_map="auto" if device == 'cuda' else None,
+                trust_remote_code=True,
+                low_cpu_mem_usage=True
+            )
+            
+            download_status[model_id]['progress'] = 90
+            download_status[model_id]['status'] = '验证模型...'
+            
+            # 简单测试
+            test_input = tokenizer("test", return_tensors="pt")
+            if device == 'cuda':
+                test_input = test_input.to('cuda')
+            
+            with torch.no_grad():
+                model(**test_input)
+            
+            download_status[model_id]['progress'] = 100
+            download_status[model_id]['status'] = '✅ 下载完成'
+            download_status[model_id]['completed'] = True
+            
+            print(f"✅ 模型 {model_id} 下载完成")
+            
+        except Exception as e:
+            download_status[model_id]['error'] = str(e)
+            download_status[model_id]['status'] = f'❌ 下载失败: {e}'
+            print(f"❌ 模型下载失败: {e}")
+    
+    # 启动下载线程
+    thread = threading.Thread(target=download_in_background)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({'message': '下载已开始', 'model_id': model_id})
+
+@app.route('/api/qwen_models/download_status', methods=['GET'])
+def get_download_status():
+    """获取下载状态"""
+    model_id = request.args.get('model_id')
+    
+    if not model_id or model_id not in download_status:
+        return jsonify({
+            'progress': 0,
+            'status': '未找到下载任务',
+            'completed': False,
+            'error': None
+        })
+    
+    return jsonify(download_status[model_id])
+
+@app.route('/api/qwen_models/delete', methods=['POST'])
+def delete_qwen_model():
+    """删除Qwen模型"""
+    import shutil
+    from pathlib import Path
+    
+    data = request.get_json()
+    model_id = data.get('model_id')
+    
+    if not model_id:
+        return jsonify({'error': '缺少model_id参数'}), 400
+    
+    try:
+        cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+        model_dir_name = f"models--{model_id.replace('/', '--')}"
+        model_path = cache_dir / model_dir_name
+        
+        if model_path.exists():
+            shutil.rmtree(model_path)
+            
+            # 也删除相关的blob文件
+            blobs_dir = cache_dir.parent / 'hub'
+            for blob_dir in blobs_dir.glob('*'):
+                if model_dir_name in str(blob_dir):
+                    try:
+                        shutil.rmtree(blob_dir)
+                    except:
+                        pass
+            
+            print(f"✅ 模型 {model_id} 已删除")
+            return jsonify({'message': '模型删除成功', 'model_id': model_id})
+        else:
+            return jsonify({'error': '模型不存在'}), 404
+            
+    except Exception as e:
+        print(f"❌ 删除模型失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# 全局下载状态字典
+download_status = {}
 
 if __name__ == '__main__':
     print("Starting AI Subtitle Generator with real-time transcription support...")
