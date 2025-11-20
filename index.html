@@ -1,179 +1,234 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>自动提取字幕的视频播放器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能字幕助手</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .container {
-            display: flex;
-            flex-direction: row;
-            width: 100%;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+            background-color: #F5F5F7;
+            color: #1D1D1F;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
 
-        #videoContainer {
-            width: 66.66%;
-            border-right: 1px solid #ccc;
-            padding-right: 10px;
+        /* --- Global Animations --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+
+        @keyframes gradientText {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .hero-text {
+            background: linear-gradient(135deg, #1D1D1F 0%, #434344 50%, #1D1D1F 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientText 8s ease infinite;
+        }
+
+        /* Background Ambient Blobs */
+        .bg-blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: blob 10s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .blob-1 { top: -10%; left: 20%; width: 400px; height: 400px; background: #E0F2FE; animation-delay: 0s; }
+        .blob-2 { top: 10%; right: 10%; width: 350px; height: 350px; background: #F3E8FF; animation-delay: 2s; }
+        .blob-3 { bottom: -10%; left: 30%; width: 300px; height: 300px; background: #E0E7FF; animation-delay: 4s; }
+
+        .apple-card {
+            background: #FFFFFF;
+            border-radius: 24px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid rgba(0, 0, 0, 0.02);
             overflow: hidden;
+            position: relative;
+            z-index: 1;
         }
 
-        #videoElement {
-            width: 100%;
-            height: auto;
+        .apple-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: -1;
         }
 
-        #subtitleContainer {
-            width: 33.33%;
-            padding-left: 10px;
-            overflow-y: auto;
-            height: 400px;
+        .apple-card:hover {
+            transform: translateY(-12px) scale(1.01);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
         }
 
-        .highlight {
-            background-color: #ffcc00;
+        .apple-card:hover::before {
+            opacity: 1;
+        }
+
+        .btn-primary {
+            background: #0071E3;
+            color: white;
+            border-radius: 980px; /* Pill shape */
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .btn-primary:hover {
+            background: #0077ED;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+
+        .icon-container {
+            background: #F5F5F7;
+            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .block.group:hover .icon-container {
+             transform: scale(1.15) rotate(5deg);
+             background: #E8F2FF;
+        }
+        .block.group:hover .icon-container svg {
+            color: #0071E3;
+            transition: color 0.3s ease;
         }
     </style>
 </head>
+<body class="min-h-screen flex flex-col relative">
 
-<body>
-    <h1>自动提取字幕的视频播放器</h1>
-    <div class="container">
-        <div id="videoContainer">
-            <div>
-                <input type="file" id="fileInput">
-                <button onclick="uploadVideo()">上传视频</button>
-                <button onclick="extractSubtitles()">提取字幕</button>
+    <!-- Ambient Background -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
+
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full z-50 top-0 transition-all duration-300 animate-fade-in-up">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-12">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    <span class="font-medium text-sm tracking-wide">AI Subtitles</span>
+                </div>
             </div>
-            <video id="videoElement" controls></video>
         </div>
-        <div id="subtitleContainer"></div>
-    </div>
-    <script>
-        // 上传视频
-        function uploadVideo() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+    </nav>
 
-            if (file) {
-                const formData = new FormData();
-                formData.append('file', file);
+    <!-- Hero Section -->
+    <main class="flex-grow pt-32 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10 relative">
+        <div class="text-center max-w-3xl mx-auto mb-20">
+            <h1 class="text-5xl sm:text-6xl font-semibold tracking-tight text-gray-900 mb-6 hero-text animate-fade-in-up delay-100">
+                字幕生成，<br>从未如此优雅。
+            </h1>
+            <p class="text-xl text-gray-500 font-normal leading-relaxed animate-fade-in-up delay-200">
+                利用先进的 AI 技术，为您提供快速、精准的视频字幕生成与实时语音转写服务。<br class="hidden sm:block">设计简洁，功能强大。
+            </p>
+        </div>
 
-                fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        const videoElement = document.getElementById('videoElement');
-                        // 更新视频源
-                        videoElement.src = data.original_video_path;
-                    })
-                    .catch(error => console.error('错误：', error));
-            } else {
-                alert('请选择要上传的视频文件');
-            }
-        }
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <!-- Card 1: Video Processing -->
+            <a href="app.html" class="block group animate-fade-in-up delay-300">
+                <div class="apple-card p-10 h-full flex flex-col items-center text-center relative">
+                    <div class="icon-container group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-8 h-8 text-gray-900" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-3">视频字幕生成</h2>
+                    <p class="text-gray-500 text-sm leading-relaxed mb-8">
+                        上传视频或粘贴链接，自动提取、翻译并生成专业级字幕文件。支持多种语言与模型选择。
+                    </p>
+                    <div class="mt-auto">
+                        <span class="text-[#0071E3] text-sm font-medium flex items-center justify-center group-hover:underline">
+                            开始使用
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </a>
 
-        // 提取字幕
-        function extractSubtitles() {
-            const videoElement = document.getElementById('videoElement');
-            const videoUrl = new URL(videoElement.src, window.location.origin);
-            const videoPath = videoUrl.pathname; // 获取相对路径
+            <!-- Card 2: Realtime Transcription -->
+            <a href="realtime.html" class="block group animate-fade-in-up delay-300">
+                <div class="apple-card p-10 h-full flex flex-col items-center text-center relative">
+                    <div class="icon-container group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-8 h-8 text-gray-900" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-3">实时语音转写</h2>
+                    <p class="text-gray-500 text-sm leading-relaxed mb-8">
+                        实时捕捉麦克风语音，即时转换为文字并翻译。适用于会议记录、听力辅助与即时翻译。
+                    </p>
+                    <div class="mt-auto">
+                        <span class="text-[#0071E3] text-sm font-medium flex items-center justify-center group-hover:underline">
+                            开始体验
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </main>
 
-            const url = `/extract_subtitles?video_path=${encodeURIComponent(videoPath)}`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    // 移除旧的字幕轨道
-                    const oldTrack = videoElement.querySelector('track');
-                    if (oldTrack) {
-                        oldTrack.remove();
-                    }
+    <footer class="bg-white border-t border-gray-200 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <p class="text-xs text-gray-400">
+                Copyright © 2023 AI Subtitles. All rights reserved.
+            </p>
+            <div class="flex space-x-6 mt-4 md:mt-0">
+                <a href="#" class="text-xs text-gray-500 hover:text-gray-800">Privacy Policy</a>
+                <a href="#" class="text-xs text-gray-500 hover:text-gray-800">Terms of Use</a>
+            </div>
+        </div>
+    </footer>
 
-                    // 创建新的字幕轨道
-                    const newTrack = document.createElement('track');
-                    newTrack.kind = 'subtitles';
-                    newTrack.src = data.subtitles_path;
-                    newTrack.srclang = 'en';
-                    newTrack.label = 'English';
-                    newTrack.default = true;
-
-                    // 添加到视频元素中
-                    videoElement.appendChild(newTrack);
-
-                    // 显示所有字幕
-                    displaySubtitles(data.subtitles_path);
-                })
-                .catch(error => console.error('错误：', error));
-        }
-
-        // 显示所有字幕
-        function displaySubtitles(subtitlesPath) {
-            fetch(subtitlesPath)
-                .then(response => response.text())
-                .then(subtitles => {
-                    const subtitleContainer = document.getElementById('subtitleContainer');
-                    subtitleContainer.innerHTML = '';
-
-                    const lines = subtitles.split('\n\n').filter(line => line.trim() !== '');
-                    lines.forEach(line => {
-                        const parts = line.split('\n');
-                        const timestamp = parts[0];
-                        const text = parts.slice(1).join('\n');
-                        const subtitleLine = document.createElement('div');
-                        subtitleLine.textContent = text;
-                        subtitleLine.dataset.timestamp = timestamp;
-                        subtitleContainer.appendChild(subtitleLine);
-                    });
-
-                    // 监听视频时间变化，高亮当前时间的字幕行
-                    const videoElement = document.getElementById('videoElement');
-                    videoElement.addEventListener('timeupdate', highlightSubtitle);
-                })
-                .catch(error => console.error('错误：', error));
-        }
-
-        // 显示所有字幕
-        function displaySubtitles(subtitlesPath) {
-            fetch(subtitlesPath)
-                .then(response => response.text())
-                .then(subtitles => {
-                    console.log('Subtitles:', subtitles); // 添加调试信息
-                    const subtitleContainer = document.getElementById('subtitleContainer');
-                    subtitleContainer.innerHTML = '';
-
-                    const lines = subtitles.split('\n\n').filter(line => line.trim() !== '');
-                    console.log('Subtitles lines:', lines); // 添加调试信息
-                    lines.forEach(line => {
-                        const parts = line.split('\n');
-                        console.log('Parts:', parts); // 添加调试信息
-                        const timestamp = parts[0];
-                        const text = parts.slice(1).join('\n');
-                        const subtitleLine = document.createElement('div');
-                        subtitleLine.textContent = text;
-                        subtitleLine.dataset.timestamp = timestamp;
-                        subtitleContainer.appendChild(subtitleLine);
-                    });
-
-                    // 监听视频时间变化，高亮当前时间的字幕行
-                    const videoElement = document.getElementById('videoElement');
-                    videoElement.addEventListener('timeupdate', highlightSubtitle);
-                })
-                .catch(error => console.error('错误：', error));
-        }
-
-        // 解析时间格式
-        function parseTime(timeString) {
-            const parts = timeString.split(':');
-            const hours = parseInt(parts[0]);
-            const minutes = parseInt(parts[1]);
-            const secondsParts = parts[2].split('.');
-            const seconds = parseInt(secondsParts[0]);
-            const milliseconds = parseInt(secondsParts[1]);
-            return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
-        }
-    </script>
 </body>
-
 </html>

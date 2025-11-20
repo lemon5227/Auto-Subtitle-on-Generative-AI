@@ -3,1737 +3,670 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>实时语音字幕助手</title>
+  <title>Realtime Transcription - AI Studio</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     body { 
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #ffffff;
-      color: #111827;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      background-color: #F5F5F7;
+      color: #1D1D1F;
+      -webkit-font-smoothing: antialiased;
     }
     
-    .elegant-card {
-      background: #ffffff;
-      border: 1px solid #f3f4f6;
-      transition: border-color 0.15s ease;
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+        60% { transform: scale(1.02) translateY(-2px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
     }
-    
-    .elegant-card:hover {
-      border-color: #e5e7eb;
-    }
-    
-    .minimal-shadow {
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-    }
-    
-    .subtitle-area { 
-      min-height: 300px; 
-      max-height: 500px; 
-    }
-    
-    .pulse-indicator {
-      width: 12px;
-      height: 12px;
-      background: #ef4444;
-      border-radius: 50%;
-      position: relative;
-    }
-    
-    .pulse-indicator::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 100%;
-      height: 100%;
-      border: 2px solid #ef4444;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      animation: pulse 2s infinite;
-    }
-    
     @keyframes pulse {
-      0% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.8;
-      }
-      70% {
-        transform: translate(-50%, -50%) scale(1.4);
-        opacity: 0;
-      }
-      100% {
-        transform: translate(-50%, -50%) scale(1.6);
-        opacity: 0;
-      }
+        0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+        100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
     }
+    @keyframes expandOpen {
+        from { opacity: 0; transform: scaleY(0.95); max-height: 0; }
+        to { opacity: 1; transform: scaleY(1); max-height: 400px; }
+    }
+
+    .glass-nav {
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .apple-card {
+        background: #FFFFFF;
+        border-radius: 18px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.02);
+        overflow: hidden;
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    .apple-input {
+        background: #F5F5F7;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 12px 16px;
+        transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        font-size: 15px;
+        color: #1D1D1F;
+    }
+
+    .apple-input:focus {
+        background: #FFFFFF;
+        border-color: #0071E3;
+        box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+        outline: none;
+        transform: scale(1.01);
+    }
+
+    .apple-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+
+    /* Voice Memo Style Button */
+    .record-btn {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #FF3B30;
+        border: 4px solid #FFFFFF;
+        box-shadow: 0 0 0 2px #FF3B30, 0 8px 24px rgba(255, 59, 48, 0.3);
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Springy */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        z-index: 10;
+    }
+
+    .record-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .record-btn.recording {
+        border-radius: 16px;
+        transform: scale(0.9);
+        background: #FF3B30;
+        box-shadow: 0 0 0 2px #FF3B30, 0 4px 12px rgba(255, 59, 48, 0.2);
+    }
+    
+    .record-btn svg {
+        width: 24px;
+        height: 24px;
+        color: white;
+        transition: all 0.2s;
+    }
+    
+    .record-btn.recording svg {
+        opacity: 0;
+    }
+
+    /* Transcript Styles */
+    .subtitle-area { 
+      min-height: 400px;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 24px;
+      background: #FFFFFF;
+      scroll-behavior: smooth;
+    }
+    
+    .subtitle-item {
+        margin-bottom: 20px;
+        animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: left bottom;
+    }
+
+    .bubble {
+        background: #F2F2F7;
+        padding: 12px 18px;
+        border-radius: 18px;
+        border-top-left-radius: 4px;
+        display: inline-block;
+        max-width: 85%;
+        color: #1D1D1F;
+        font-size: 16px;
+        line-height: 1.5;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .bubble.translated {
+        background: #E8F2FF;
+        color: #0040DD;
+        margin-top: 4px;
+        border-top-left-radius: 18px;
+        border-bottom-left-radius: 4px;
+    }
+    
+    .timestamp {
+        font-size: 11px;
+        color: #86868b;
+        margin-bottom: 4px;
+        margin-left: 4px;
+        font-weight: 500;
+    }
+
+    .pulse-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid #FF3B30;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* Multiple Pulse Rings */
+    .recording .pulse-ring { animation: pulse 2s infinite; }
+    .recording .pulse-ring:nth-child(2) { animation-delay: 0.5s; }
+    .recording .pulse-ring:nth-child(3) { animation-delay: 1s; }
+
+    /* Switch Toggle */
+    .apple-switch {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 24px;
+    }
+    .apple-switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #E5E5EA;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        transition: .4s cubic-bezier(0.25, 1, 0.5, 1);
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    input:checked + .slider { background-color: #34C759; }
+    input:checked + .slider:before { transform: translateX(18px); }
+
+    /* Settings Panel Animation */
+    .animation-expand {
+        animation: expandOpen 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: top;
+    }
+
   </style>
 </head>
-<body class="bg-white min-h-screen">
-  <!-- 顶部导航 -->
-    <!-- 顶部导航 -->
-  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+<body class="pb-20">
+
+  <!-- Navigation -->
+  <nav class="glass-nav sticky top-0 z-50 w-full">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-xl font-semibold text-gray-900">实时语音字幕助手</h1>
-          </div>
-        </div>
-        <div class="flex items-center">
-          <a href="app.html" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-            返回主页面
+      <div class="flex justify-between items-center h-14">
+        <div class="flex items-center space-x-4">
+          <a href="index.html" class="flex items-center space-x-2 text-gray-900 hover:opacity-70 transition-opacity">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+              <span class="font-medium text-sm">Back</span>
           </a>
+          <div class="h-4 w-px bg-gray-300"></div>
+          <span class="font-semibold text-sm">Realtime Transcription</span>
         </div>
       </div>
     </div>
   </nav>
 
-  <main class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <!-- 控制面板 -->
-    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <!-- 麦克风控制 -->
-        <div class="text-center">
-          <div class="relative inline-block">
-            <button id="micBtn" class="relative bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2">
-              <div id="micIcon" class="w-5 h-5">
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+    <!-- Controls Card -->
+    <div class="apple-card p-8 mb-8 flex flex-col items-center text-center relative overflow-visible">
+
+        <!-- Recording Button Area -->
+        <div class="mb-8 relative flex flex-col items-center justify-center">
+             <button id="micBtn" class="record-btn relative z-10">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v2m0-2a6 6 0 0 0 6-6V9a6 6 0 0 0-12 0v3a6 6 0 0 0 6 6zm0 0v2m-4 0h8"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.5v1.5m0-1.5a6 6 0 0 1-6-6v-3a6 6 0 0 1 12 0v3a6 6 0 0 1-6 6zm0-14.5a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0v-3a3 3 0 0 0-3-3z"/>
                 </svg>
-              </div>
-              <span id="micBtnText">开始监听</span>
-            </button>
-            <div id="recordingIndicator" class="absolute -top-1 -right-1 pulse-indicator hidden"></div>
-          </div>
-          <p id="micStatus" class="mt-3 text-sm text-gray-600">点击开始实时语音识别</p>
+                 <div class="pulse-ring"></div>
+                 <div class="pulse-ring"></div>
+                 <div class="pulse-ring"></div>
+             </button>
+             <p id="micStatus" class="mt-4 text-sm font-medium text-gray-500 transition-colors">Tap to Record</p>
         </div>
 
-        <!-- 语言选择 -->
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">识别语言</label>
-          <select id="languageSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900" onchange="updateModelOptions()">
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
-        </div>
-
-        <!-- 模型选择 -->
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">识别模型</label>
-          <select id="modelSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-            <option value="large-v3-turbo">large-v3-turbo (最快/推荐)</option>
-            <option value="small">small (推荐中文)</option>
-            <option value="sensevoice">SenseVoice (实验性)</option>
-            <option value="base">base</option>
-            <option value="medium">medium</option>
-            <option value="large">large</option>
-            <option value="large-v3">large-v3 (最新)</option>
-            <option value="distil-small.en">distil-small.en (英文)</option>
-            <option value="distil-medium.en">distil-medium.en (英文)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 高级功能面板 -->
-      <div class="border-t border-gray-200 pt-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-gray-900">🎯 高级功能</h3>
-          <button id="advancedToggle" class="text-sm text-gray-600 hover:text-gray-900" onclick="toggleAdvanced()">
-            <span id="advancedToggleText">展开</span>
-            <svg id="advancedToggleIcon" class="inline w-4 h-4 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-        </div>
-        
-        <div id="advancedPanel" class="hidden space-y-6">
-          <!-- 1. 实时翻译 (Helsinki-NLP) -->
-          <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
-            <label class="flex items-center space-x-2 mb-3 cursor-pointer">
-              <input type="checkbox" id="enableTranslation" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" onchange="toggleTranslationSettings()">
-              <span class="text-sm font-semibold text-gray-900">🚀 实时翻译 (快速)</span>
-            </label>
-            
-            <div id="translationSettings" class="hidden space-y-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">翻译到</label>
-                <select id="targetLanguage" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                  <option value="zh">中文 (Chinese)</option>
-                  <option value="en">英语 (English)</option>
-                  <option value="ja">日语 (Japanese)</option>
-                  <option value="ko">韩语 (Korean)</option>
-                  <option value="es">西班牙语 (Spanish)</option>
-                  <option value="fr">法语 (French)</option>
-                  <option value="de">德语 (German)</option>
+        <!-- Settings Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+            <div class="text-left">
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Source Language</label>
+                <select id="languageSelect" class="apple-input apple-select w-full" onchange="updateModelOptions()">
+                    <option value="zh">Chinese</option>
+                    <option value="en">English</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
                 </select>
-              </div>
-              
-              <div class="bg-blue-50 rounded p-2 border border-blue-200">
-                <p class="text-xs text-blue-800">
-                  <span class="font-semibold">💡 提示：</span>
-                  使用轻量级 Helsinki-NLP 模型进行快速实时翻译，边说边译，延迟极低。
-                </p>
-              </div>
             </div>
-          </div>
-
-          <!-- 2. 字幕优化 (Qwen) -->
-          <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
-            <label class="flex items-center space-x-2 mb-3 cursor-pointer">
-              <input type="checkbox" id="enableRefinement" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" onchange="toggleRefinementSettings()">
-              <span class="text-sm font-semibold text-gray-900">✨ 字幕优化 (高质量)</span>
-            </label>
             
-            <div id="refinementSettings" class="hidden space-y-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">选择 Qwen 模型</label>
-                <select id="refinementModel" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500">
-                  <option value="Qwen/Qwen3-0.6B">Qwen3-0.6B - 超轻量 (2GB显存)</option>
-                  <option value="Qwen/Qwen3-1.7B" selected>Qwen3-1.7B - 推荐⭐ (4GB显存)</option>
-                  <option value="Qwen/Qwen3-4B">Qwen3-4B - 高质量 (8GB显存)</option>
-                  <option value="Qwen/Qwen3-8B">Qwen3-8B - 专业级 (16GB显存)</option>
+            <div class="text-left">
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Model</label>
+                <select id="modelSelect" class="apple-input apple-select w-full">
+                    <option value="large-v3-turbo">large-v3-turbo (Fastest)</option>
+                    <option value="small">small</option>
+                    <option value="base">base</option>
                 </select>
-              </div>
-              
-              <div class="bg-purple-50 rounded p-2 border border-purple-200">
-                <p class="text-xs text-purple-800 mb-2">
-                  <span class="font-semibold">🎯 优化选项：</span>
-                </p>
-                <div class="space-y-2">
-                  <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                      <input type="checkbox" id="fixPunctuation" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
-                      <span class="text-xs text-gray-700">标点符号</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                      <input type="checkbox" id="fixGrammar" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
-                      <span class="text-xs text-gray-700">语法纠错</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                      <input type="checkbox" id="removeFillers" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
-                      <span class="text-xs text-gray-700">去除口语词</span>
-                    </label>
-                    <label class="flex items-center space-x-1 cursor-pointer">
-                      <input type="checkbox" id="formatSegments" class="w-3 h-3 text-purple-600 border-gray-300 rounded" checked>
-                      <span class="text-xs text-gray-700">上下文优化</span>
-                    </label>
-                  </div>
-                  
-                  <div class="border-t border-purple-200 pt-2 mt-2">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                      <input type="checkbox" id="enableDeepThinking" class="w-3 h-3 text-purple-600 border-gray-300 rounded">
-                      <span class="text-xs text-gray-700 font-medium">🧠 深度思考模式</span>
-                      <span class="text-xs text-gray-500">(质量↑ 速度↓)</span>
-                    </label>
-                    <p class="text-xs text-gray-500 mt-1 ml-5">
-                      启用后Qwen会进行深入分析和推理，质量更高但耗时更长
-                    </p>
-                  </div>
+            </div>
+        </div>
+
+        <!-- Advanced Toggles -->
+        <div class="mt-8 w-full max-w-2xl border-t border-gray-100 pt-6 flex flex-col md:flex-row justify-between gap-6">
+            
+            <!-- Translation Toggle -->
+            <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl flex-1">
+                <div class="mr-4">
+                    <h4 class="text-sm font-semibold text-gray-900">Realtime Translation</h4>
+                    <p class="text-xs text-gray-500 mt-1">Translate to target language instantly</p>
                 </div>
-              </div>
-              
-              <div class="bg-amber-50 rounded p-2 border border-amber-200">
-                <p class="text-xs text-amber-800">
-                  <span class="font-semibold">💡 提示：</span>
-                  Qwen会分析完整字幕上下文，提供专业级校对和翻译。
-                </p>
-              </div>
-              
-              <button id="batchRefineBtn" class="w-full mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center justify-center gap-2" onclick="batchRefineAllSubtitles()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <label class="apple-switch">
+                    <input type="checkbox" id="enableTranslation" onchange="toggleTranslationSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Refinement Toggle -->
+            <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl flex-1">
+                <div class="mr-4">
+                    <h4 class="text-sm font-semibold text-gray-900">Smart Refinement</h4>
+                    <p class="text-xs text-gray-500 mt-1">Fix grammar & punctuation (Qwen)</p>
+                </div>
+                <label class="apple-switch">
+                    <input type="checkbox" id="enableRefinement" onchange="toggleRefinementSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+        </div>
+
+        <!-- Hidden Settings Panels -->
+        <div id="translationSettings" class="hidden w-full max-w-2xl mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 text-left animation-expand">
+            <label class="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2 block">Translate To</label>
+            <select id="targetLanguage" class="apple-input apple-select w-full bg-white border-blue-200">
+                <option value="en">English</option>
+                <option value="zh">Chinese</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+            </select>
+        </div>
+
+        <div id="refinementSettings" class="hidden w-full max-w-2xl mt-4 bg-purple-50 p-4 rounded-xl border border-purple-100 text-left animation-expand">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                    <label class="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2 block">Refinement Model</label>
+                    <select id="refinementModel" class="apple-input apple-select w-full bg-white border-purple-200">
+                        <option value="Qwen/Qwen3-1.7B" selected>Qwen3-1.7B (Recommended)</option>
+                        <option value="Qwen/Qwen3-0.6B">Qwen3-0.6B (Fast)</option>
+                    </select>
+                 </div>
+                 <div class="flex flex-col gap-2 pt-6">
+                     <label class="flex items-center text-sm text-gray-700">
+                         <input type="checkbox" id="fixPunctuation" class="mr-2 rounded text-purple-600" checked> Punctuation
+                     </label>
+                     <label class="flex items-center text-sm text-gray-700">
+                         <input type="checkbox" id="fixGrammar" class="mr-2 rounded text-purple-600" checked> Grammar
+                     </label>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript Area -->
+    <div class="apple-card">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div class="flex items-center space-x-3">
+                <h3 class="font-semibold text-gray-900">Live Transcript</h3>
+                <span id="subtitleCount" class="px-2 py-1 bg-white border border-gray-200 text-xs rounded-md text-gray-500 font-mono">0 lines</span>
+            </div>
+            <div class="flex space-x-2">
+                <button id="clearBtn" class="text-xs font-medium text-gray-600 hover:text-red-500 transition-colors px-3 py-1.5 hover:bg-red-50 rounded-lg">Clear</button>
+                <button id="saveBtn" class="text-xs font-medium text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors">Save</button>
+            </div>
+        </div>
+
+        <div id="subtitleArea" class="subtitle-area">
+            <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 py-20">
+                <svg class="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
                 </svg>
-                <span>批量优化字幕</span>
-              </button>
+                <p class="text-sm">Transcription will appear here...</p>
             </div>
-          </div>
-
-          <!-- 3. 模型管理 -->
-          <div class="border-t border-gray-200 pt-4">
-            <button id="modelManagementToggle" class="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 mb-3" onclick="toggleModelManagement()">
-              <span>� 模型管理</span>
-              <svg id="modelManagementIcon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
-            
-            <div id="modelManagementPanel" class="hidden bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
-              <div id="modelListContainer" class="space-y-2">
-                <p class="text-xs text-gray-500">加载中...</p>
-              </div>
-              
-              <div class="flex justify-between items-center pt-3 border-t border-gray-300">
-                <button id="downloadModelBtn" class="text-xs px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition" onclick="showDownloadModal()">
-                  📥 下载新模型
-                </button>
-                <button id="refreshModelsBtn" class="text-xs px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition" onclick="refreshModelList()">
-                  🔄 刷新状态
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-```      </div>
     </div>
 
-    <!-- 字幕显示区 -->
-    <div class="elegant-card rounded-lg p-6 minimal-shadow">
-      <div class="flex justify-between items-center mb-4">
-        <div class="flex items-center space-x-3">
-          <h2 class="text-lg font-semibold text-gray-900">实时字幕</h2>
-          <div class="flex items-center space-x-2 text-xs">
-            <span id="subtitleCount" class="px-2 py-1 bg-gray-100 text-gray-700 rounded">0 条</span>
-            <span id="translationStatus" class="px-2 py-1 bg-blue-100 text-blue-700 rounded hidden">翻译中...</span>
-            <span id="refinementStatus" class="px-2 py-1 bg-green-100 text-green-700 rounded hidden">优化中...</span>
-          </div>
-        </div>
-        <div class="flex space-x-2">
-          <button id="exportBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            导出
-          </button>
-          <button id="clearBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
-            清空
-          </button>
-          <button id="saveBtn" class="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800">
-            保存字幕
-          </button>
-        </div>
-      </div>
-
-      <div id="subtitleArea" class="subtitle-area bg-gray-50 rounded-lg p-4 overflow-y-auto border border-gray-300">
-        <div class="text-gray-500 text-center py-8">
-          <svg class="mx-auto h-10 w-10 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-          </svg>
-          <p>字幕将在这里实时显示...</p>
-          <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
-          <p class="text-xs mt-2 text-gray-400">启用翻译可显示双语字幕 • 启用优化可提升质量</p>
-        </div>
-      </div>
-    </div>
   </main>
 
-  <!-- 保存字幕模态框 -->
-  <div id="saveModal" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
-    <div class="relative top-20 mx-auto p-6 border border-gray-200 w-96 shadow-lg rounded-lg bg-white">
-      <div class="mt-3">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">保存字幕</h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-900 mb-2">文件名</label>
-            <input type="text" id="filenameInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900" placeholder="lecture_subtitles" value="lecture_subtitles">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-900 mb-2">格式</label>
-            <select id="formatSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-              <option value="txt">纯文本 (.txt)</option>
-              <option value="vtt">WebVTT (.vtt)</option>
-              <option value="srt">SRT (.srt)</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button id="cancelSaveBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
-          <button id="confirmSaveBtn" class="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800">保存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 下载模型模态框 -->
-  <div id="downloadModal" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
-    <div class="relative top-10 mx-auto p-6 border border-gray-200 w-full max-w-2xl shadow-lg rounded-lg bg-white">
-      <div class="mt-3">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-          </svg>
-          下载Qwen模型
-        </h3>
-        
-        <div class="space-y-4">
-          <!-- 模型选择 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-900 mb-2">选择模型</label>
-            <select id="downloadModelSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600">
-              <option value="">-- 请选择模型 --</option>
-              <optgroup label="🔥 推荐 - 实时翻译">
-                <option value="Qwen/Qwen3-0.6B">Qwen3-0.6B (0.6B, ~2GB, 超快⚡⚡⚡)</option>
-                <option value="Qwen/Qwen3-1.7B">Qwen3-1.7B (1.7B, ~4GB, 推荐⭐)</option>
-              </optgroup>
-              <optgroup label="✨ 字幕优化">
-                <option value="Qwen/Qwen3-4B">Qwen3-4B (4B, ~8GB, 高质量)</option>
-                <option value="Qwen/Qwen3-8B">Qwen3-8B (8B, ~16GB, 最佳)</option>
-              </optgroup>
-            </select>
-          </div>
-          
-          <!-- 设备选择 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-900 mb-2">运行设备</label>
-            <div class="flex gap-3">
-              <label class="flex items-center">
-                <input type="radio" name="downloadDevice" value="auto" class="mr-2" checked>
-                <span class="text-sm">自动检测</span>
-              </label>
-              <label class="flex items-center">
-                <input type="radio" name="downloadDevice" value="cuda" class="mr-2">
-                <span class="text-sm">GPU (CUDA)</span>
-              </label>
-              <label class="flex items-center">
-                <input type="radio" name="downloadDevice" value="cpu" class="mr-2">
-                <span class="text-sm">CPU</span>
-              </label>
-            </div>
-          </div>
-          
-          <!-- 精度选择 -->
-          <div>
-            <label class="flex items-center">
-              <input type="checkbox" id="useFP16" class="mr-2">
-              <span class="text-sm font-medium text-gray-900">使用FP16精度（节省显存，仅GPU支持）</span>
-            </label>
-          </div>
-          
-          <!-- 下载进度 -->
-          <div id="downloadProgress" class="hidden">
-            <div class="bg-gray-100 rounded-lg p-4">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-medium text-gray-700">下载进度</span>
-                <span id="downloadPercent" class="text-sm text-gray-600">0%</span>
+  <!-- Save Modal -->
+  <div id="saveModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden z-[100] flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Save Transcript</h3>
+          <div class="space-y-4">
+              <div>
+                  <label class="block text-xs font-semibold text-gray-500 mb-1">Filename</label>
+                  <input type="text" id="filenameInput" class="apple-input w-full" value="transcript" placeholder="transcript">
               </div>
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div id="downloadProgressBar" class="bg-purple-600 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+              <div>
+                  <label class="block text-xs font-semibold text-gray-500 mb-1">Format</label>
+                  <select id="formatSelect" class="apple-input apple-select w-full">
+                      <option value="txt">Text (.txt)</option>
+                      <option value="vtt">WebVTT (.vtt)</option>
+                      <option value="srt">SRT (.srt)</option>
+                  </select>
               </div>
-              <p id="downloadStatus" class="text-xs text-gray-600 mt-2">准备下载...</p>
-            </div>
           </div>
-          
-          <!-- 提示信息 -->
-          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p class="text-xs text-blue-800">
-              <strong>💡 提示：</strong><br>
-              • 首次下载需要几分钟到几十分钟，取决于网络速度<br>
-              • 模型会自动保存到 ~/.cache/huggingface/hub<br>
-              • 可以使用镜像加速：export HF_ENDPOINT=https://hf-mirror.com
-            </p>
+          <div class="flex justify-end space-x-3 mt-6">
+              <button id="cancelSaveBtn" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button id="confirmSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-lg">Save</button>
           </div>
-        </div>
-        
-        <div class="flex justify-end space-x-3 mt-6">
-          <button id="cancelDownloadBtn" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
-          <button id="startDownloadBtn" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700">开始下载</button>
-        </div>
       </div>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
   <script>
-    // DOM 元素
+    // Main Application Logic
     const micBtn = document.getElementById('micBtn');
-    const micBtnText = document.getElementById('micBtnText');
     const micStatus = document.getElementById('micStatus');
-    const micIcon = document.getElementById('micIcon');
-    const recordingIndicator = document.getElementById('recordingIndicator');
-    // const connectionStatus = document.getElementById('connectionStatus');
     const subtitleArea = document.getElementById('subtitleArea');
-    const clearBtn = document.getElementById('clearBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const saveModal = document.getElementById('saveModal');
-    const cancelSaveBtn = document.getElementById('cancelSaveBtn');
-    const confirmSaveBtn = document.getElementById('confirmSaveBtn');
     const languageSelect = document.getElementById('languageSelect');
     const modelSelect = document.getElementById('modelSelect');
 
-    const statusClassMap = {
-      green: 'text-sm text-green-700',
-      yellow: 'text-sm text-yellow-700',
-      red: 'text-sm text-red-700',
-      gray: 'text-sm text-gray-600'
-    };
-
-    // 状态变量
     let listening = false;
-    let mediaStream = null;
     let socket = null;
-    let socketReadyPromise = null;
+    let mediaStream = null;
     let audioContext = null;
     let audioProcessor = null;
-    let transcriptionActive = false;
     let subtitles = [];
     let currentSubtitleId = 0;
 
     function init() {
-      setupEventListeners();
-      setConnectionStatus('未连接', 'gray');
-      
-      // 初始化模型选项
-      updateModelOptions();
-      
-      // 检查Qwen模型可用性
-      checkQwenAvailability();
-      
-      // 加载模型列表
-      refreshModelList();
-
-      if (window.io) {
-        connectSocket().catch((err) => {
-          setConnectionStatus('未连接', 'gray');
-        });
-      } else {
-        setConnectionStatus('缺少 Socket.IO', 'red');
-      }
-    }
-    
-    async function checkQwenAvailability() {
-      try {
-        const response = await fetch('/api/qwen_models');
-        const data = await response.json();
+        // Initialize Model Options
+        updateModelOptions();
         
-        if (!data.available) {
-          // Qwen不可用，更新UI
-          const refinementModel = document.getElementById('refinementModel');
-          const options = refinementModel.querySelectorAll('option');
-          options.forEach(opt => {
-            if (opt.value.startsWith('qwen')) {
-              opt.disabled = true;
-              opt.textContent += ' (未安装)';
-            }
-          });
-          refinementModel.value = 'local';
-          
-          // 显示提示
-          console.warn('Qwen模型不可用，仅支持本地规则优化');
-        } else {
-          console.log('✅ Qwen模型可用:', data.models);
+        // Setup Listeners
+        micBtn.addEventListener('click', toggleListening);
+        document.getElementById('clearBtn').addEventListener('click', clearSubtitles);
+        document.getElementById('saveBtn').addEventListener('click', () => document.getElementById('saveModal').classList.remove('hidden'));
+        document.getElementById('cancelSaveBtn').addEventListener('click', () => document.getElementById('saveModal').classList.add('hidden'));
+        document.getElementById('confirmSaveBtn').addEventListener('click', saveSubtitles);
+
+        if (window.io) {
+            setupSocket();
         }
-      } catch (error) {
-        console.error('检查Qwen可用性失败:', error);
-      }
     }
-    
-    // ========== 模型管理功能 ==========
-    
-    async function refreshModelList() {
-      const container = document.getElementById('modelListContainer');
-      container.innerHTML = '<p class="text-xs text-gray-500">加载中...</p>';
-      
-      try {
-        const response = await fetch('/api/qwen_models/list');
-        const data = await response.json();
+
+    function updateModelOptions() {
+        const lang = languageSelect.value;
+        const current = modelSelect.value;
+        modelSelect.innerHTML = '';
         
-        if (!data.models || data.models.length === 0) {
-          container.innerHTML = `
-            <div class="text-center py-3 text-gray-500">
-              <p class="text-sm">暂无已下载的模型</p>
-              <p class="text-xs mt-1">点击"下载新模型"开始使用</p>
-            </div>
-          `;
-          return;
-        }
+        const models = [
+            { val: 'large-v3-turbo', text: 'large-v3-turbo (Recommended)' },
+            { val: 'large-v3', text: 'large-v3 (Accurate)' },
+            { val: 'small', text: 'small (Fast)' },
+            { val: 'base', text: 'base' }
+        ];
         
-        container.innerHTML = data.models.map(model => `
-          <div class="bg-white border border-gray-200 rounded-md p-3 flex justify-between items-center hover:border-purple-300 transition-colors">
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <h4 class="text-sm font-medium text-gray-900">${model.name}</h4>
-                ${model.recommended ? '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">推荐⭐</span>' : ''}
-              </div>
-              <p class="text-xs text-gray-500 mt-1">
-                ${model.size} • ${model.best_for || '通用'}
-                ${model.path ? ' • 已下载✓' : ' • 未下载'}
-              </p>
-            </div>
-            <div class="flex gap-2">
-              ${model.path ? `
-                <button onclick="deleteModel('${model.model_id}')" class="text-xs px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">
-                  🗑️ 删除
-                </button>
-              ` : `
-                <button onclick="downloadModelDirect('${model.model_id}')" class="text-xs px-3 py-1 bg-purple-50 text-purple-600 border border-purple-200 rounded hover:bg-purple-100">
-                  📥 下载
-                </button>
-              `}
-            </div>
-          </div>
-        `).join('');
+        if (lang === 'zh') models.push({ val: 'sensevoice', text: 'SenseVoice (Chinese)' });
+        if (lang === 'en') models.push({ val: 'distil-medium.en', text: 'distil-medium.en (English)' });
         
-      } catch (error) {
-        console.error('加载模型列表失败:', error);
-        container.innerHTML = `
-          <div class="text-center py-3 text-red-500">
-            <p class="text-sm">加载失败</p>
-            <button onclick="refreshModelList()" class="text-xs underline mt-1">重试</button>
-          </div>
-        `;
-      }
-    }
-    
-    function showDownloadModal() {
-      document.getElementById('downloadModal').classList.remove('hidden');
-      document.getElementById('downloadProgress').classList.add('hidden');
-      document.getElementById('downloadProgressBar').style.width = '0%';
-    }
-    
-    function hideDownloadModal() {
-      document.getElementById('downloadModal').classList.add('hidden');
-    }
-    
-    async function downloadModelDirect(modelId) {
-      // 直接下载指定模型
-      document.getElementById('downloadModelSelect').value = modelId;
-      showDownloadModal();
-    }
-    
-    async function startModelDownload() {
-      const modelSelect = document.getElementById('downloadModelSelect');
-      const modelId = modelSelect.value;
-      
-      if (!modelId) {
-        alert('请选择要下载的模型');
-        return;
-      }
-      
-      const device = document.querySelector('input[name="downloadDevice"]:checked').value;
-      const useFP16 = document.getElementById('useFP16').checked;
-      
-      // 显示进度
-      document.getElementById('downloadProgress').classList.remove('hidden');
-      document.getElementById('startDownloadBtn').disabled = true;
-      document.getElementById('startDownloadBtn').textContent = '下载中...';
-      
-      try {
-        const response = await fetch('/api/qwen_models/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model_id: modelId,
-            device: device,
-            use_fp16: useFP16
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('下载请求失败');
-        }
-        
-        // 轮询下载状态
-        await pollDownloadStatus(modelId);
-        
-      } catch (error) {
-        console.error('下载失败:', error);
-        alert('模型下载失败: ' + error.message);
-        document.getElementById('startDownloadBtn').disabled = false;
-        document.getElementById('startDownloadBtn').textContent = '开始下载';
-      }
-    }
-    
-    async function pollDownloadStatus(modelId) {
-      const maxAttempts = 600; // 最多10分钟
-      let attempts = 0;
-      
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        
-        try {
-          const response = await fetch(`/api/qwen_models/download_status?model_id=${encodeURIComponent(modelId)}`);
-          const data = await response.json();
-          
-          // 更新进度
-          const percent = data.progress || 0;
-          document.getElementById('downloadProgressBar').style.width = percent + '%';
-          document.getElementById('downloadPercent').textContent = percent + '%';
-          document.getElementById('downloadStatus').textContent = data.status || '下载中...';
-          
-          if (data.completed) {
-            clearInterval(pollInterval);
-            document.getElementById('downloadProgressBar').style.width = '100%';
-            document.getElementById('downloadPercent').textContent = '100%';
-            document.getElementById('downloadStatus').textContent = '✅ 下载完成！';
-            
-            setTimeout(() => {
-              hideDownloadModal();
-              refreshModelList();
-              checkQwenAvailability();
-            }, 2000);
-            
-            document.getElementById('startDownloadBtn').disabled = false;
-            document.getElementById('startDownloadBtn').textContent = '开始下载';
-          }
-          
-          if (data.error || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            alert('下载失败: ' + (data.error || '超时'));
-            document.getElementById('startDownloadBtn').disabled = false;
-            document.getElementById('startDownloadBtn').textContent = '开始下载';
-          }
-        } catch (error) {
-          console.error('轮询状态失败:', error);
-        }
-      }, 1000);
-    }
-    
-    async function deleteModel(modelId) {
-      if (!confirm(`确定要删除模型 ${modelId} 吗？\n\n删除后需要重新下载才能使用。`)) {
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/qwen_models/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model_id: modelId })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-          alert('✅ 模型删除成功');
-          refreshModelList();
-          checkQwenAvailability();
-        } else {
-          alert('删除失败: ' + (data.error || '未知错误'));
-        }
-      } catch (error) {
-        console.error('删除模型失败:', error);
-        alert('删除失败: ' + error.message);
-      }
-    }
-
-    function setupEventListeners() {
-      micBtn.addEventListener('click', async () => {
-        if (micBtn.disabled) return;
-        try {
-          if (listening) {
-            await stopListening();
-          } else {
-            await startListening();
-          }
-        } catch (error) {
-          console.error('监听切换失败:', error);
-        }
-      });
-
-      clearBtn.addEventListener('click', clearSubtitles);
-      saveBtn.addEventListener('click', showSaveModal);
-      cancelSaveBtn.addEventListener('click', hideSaveModal);
-      confirmSaveBtn.addEventListener('click', saveSubtitles);
-      
-      // 导出按钮
-      const exportBtn = document.getElementById('exportBtn');
-      if (exportBtn) {
-        exportBtn.addEventListener('click', showSaveModal);
-      }
-      
-      // 模型管理按钮
-      const cancelDownloadBtn = document.getElementById('cancelDownloadBtn');
-      const startDownloadBtn = document.getElementById('startDownloadBtn');
-      
-      if (cancelDownloadBtn) {
-        cancelDownloadBtn.addEventListener('click', hideDownloadModal);
-      }
-      
-      if (startDownloadBtn) {
-        startDownloadBtn.addEventListener('click', startModelDownload);
-      }
-    }
-
-    function setConnectionStatus(text, tone = 'gray') {
-      // connectionStatus.textContent = text;
-      // connectionStatus.className = statusClassMap[tone] || statusClassMap.gray;
-      console.log(`连接状态: ${text} (${tone})`);
-    }
-
-    function setupSocket() {
-      if (socket || !window.io) {
-        return;
-      }
-
-      // 使用当前页面的协议和主机，确保与服务器地址一致
-      const socketUrl = window.location.origin;
-      console.log('🔌 连接到 Socket.IO 服务器:', socketUrl);
-
-      socket = io(socketUrl, { 
-        transports: ['polling', 'websocket'],
-        upgrade: true,
-        rememberUpgrade: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 10000,
-        path: '/socket.io/'
-      });
-
-      socket.on('connect', () => {
-        console.log('✅ Socket connected:', socket.id);
-        setConnectionStatus('已连接', 'green');
-      });
-
-      socket.on('disconnect', (reason) => {
-        console.log('❌ Socket disconnected:', reason);
-        setConnectionStatus('未连接', 'gray');
-        transcriptionActive = false;
-        listening = false;
-        resetUIToIdle();
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('❌ Connection error:', error);
-        setConnectionStatus('连接错误', 'red');
-      });
-
-      socket.on('reconnect_attempt', (attemptNumber) => {
-        console.log('🔄 Reconnecting... attempt:', attemptNumber);
-        setConnectionStatus('重连中...', 'yellow');
-      });
-
-      socket.on('transcription', (payload) => {
-        if (payload?.text) {
-          addSubtitle(payload.text, payload.timestamp);
-        }
-      });
-
-      socket.on('transcription_started', () => {
-        transcriptionActive = true;
-        micStatus.textContent = '正在监听...';
-      });
-
-      socket.on('transcription_stopped', () => {
-        transcriptionActive = false;
-        micStatus.textContent = '已停止监听';
-      });
-
-      socket.on('error', (payload) => {
-        const message = payload?.message || '服务器错误';
-        micStatus.textContent = `错误: ${message}`;
-        setConnectionStatus('错误', 'red');
-        transcriptionActive = false;
-      });
-    }
-
-    function connectSocket() {
-      setupSocket();
-      if (!socket) {
-        return Promise.reject(new Error('Socket.IO 客户端不可用'));
-      }
-
-      if (socket.connected) {
-        setConnectionStatus('已连接', 'green');
-        return Promise.resolve(socket);
-      }
-
-      if (socketReadyPromise) {
-        return socketReadyPromise;
-      }
-
-      socketReadyPromise = new Promise((resolve, reject) => {
-        setConnectionStatus('连接中...', 'yellow');
-
-        const handleConnect = () => {
-          cleanup();
-          console.log('✅ Socket ready');
-          setConnectionStatus('已连接', 'green');
-          resolve(socket);
-        };
-
-        const handleError = (err) => {
-          cleanup();
-          console.error('❌ Socket error:', err);
-          setConnectionStatus('连接错误', 'red');
-          reject(err);
-        };
-
-        const cleanup = () => {
-          socket.off('connect', handleConnect);
-          socket.off('connect_error', handleError);
-          socketReadyPromise = null;
-        };
-
-        socket.once('connect', handleConnect);
-        socket.once('connect_error', handleError);
-        
-        // 如果未连接，则连接
-        if (!socket.connected) {
-          socket.connect();
-        }
-      });
-
-      return socketReadyPromise;
-    }
-
-    function emitWithAck(event, payload, timeout = 8000) {
-      if (!socket) {
-        return Promise.reject(new Error('Socket 未初始化'));
-      }
-
-      return new Promise((resolve, reject) => {
-        let settled = false;
-        const timer = setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            reject(new Error('请求超时'));
-          }
-        }, timeout);
-
-        socket.emit(event, payload, (response) => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          clearTimeout(timer);
-          resolve(response);
-        });
-      });
-    }
-
-    async function startListening() {
-      if (listening) {
-        return;
-      }
-
-      try {
-        micBtn.disabled = true;
-        micStatus.textContent = '正在连接服务端...';
-        await connectSocket();
-
-        micStatus.textContent = '正在请求麦克风权限...';
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            sampleRate: 16000
-          }
-        });
-
-        micStatus.textContent = '正在启动转写...';
-        const language = languageSelect.value;
-        const model = modelSelect.value;
-        const response = await emitWithAck('start_transcription', { model, language });
-
-        if (!response || response.status !== 'success') {
-          throw new Error(response?.message || '服务端未能启动转写');
-        }
-
-        applyListeningUI();
-        listening = true;
-        startAudioStreaming();
-        micBtn.disabled = false;
-      } catch (err) {
-        console.error('启动监听失败:', err);
-        micStatus.textContent = `启动失败: ${err.message}`;
-        resetUIToIdle();
-        cleanupMediaResources();
-        listening = false;
-        micBtn.disabled = false;
-      }
-    }
-
-    async function stopListening() {
-      if (!listening && !transcriptionActive) {
-        resetUIToIdle();
-        return;
-      }
-
-      // Immediately disable button to prevent multiple clicks
-      micBtn.disabled = true;
-      micBtnText.textContent = '停止中...';
-      listening = false;
-      transcriptionActive = false;
-
-      cleanupMediaResources();
-
-      if (socket && socket.connected) {
-        try {
-          micStatus.textContent = '正在停止转写...';
-          const response = await emitWithAck('stop_transcription', {});
-          if (!response || response.status !== 'success') {
-            throw new Error(response?.message || '服务端停止失败');
-          }
-        } catch (err) {
-          console.warn('停止转写时发生错误:', err);
-          micStatus.textContent = `停止失败: ${err.message}`;
-        }
-      }
-
-      resetUIToIdle();
-      micBtn.disabled = false;
-    }
-
-    function applyListeningUI() {
-      micStatus.textContent = '等待语音输入...';
-      micBtnText.textContent = '停止监听';
-      micBtn.classList.remove('bg-gray-900', 'hover:bg-gray-800');
-      micBtn.classList.add('bg-red-600', 'hover:bg-red-700');
-      recordingIndicator.classList.remove('hidden');
-      micIcon.innerHTML = `
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/>
-        </svg>
-      `;
-    }
-
-    function resetUIToIdle() {
-      micStatus.textContent = '就绪 - 点击开始监听';
-      micBtnText.textContent = '开始监听';
-      micBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
-      micBtn.classList.add('bg-gray-900', 'hover:bg-gray-800');
-      recordingIndicator.classList.add('hidden');
-      micIcon.innerHTML = `
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v2m0-2a6 6 0 0 0 6-6V9a6 6 0 0 0-12 0v3a6 6 0 0 0 6 6zm0 0v2m-4 0h8"/>
-        </svg>
-      `;
-    }
-
-    function startAudioStreaming() {
-      if (!mediaStream) {
-        return;
-      }
-
-      if (audioContext) {
-        return;
-      }
-
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaStreamSource(mediaStream);
-      audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-
-      audioProcessor.onaudioprocess = (event) => {
-        if (!transcriptionActive || !socket || !socket.connected) {
-          return;
-        }
-
-        const inputData = event.inputBuffer.getChannelData(0);
-        const pcmData = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const sample = Math.max(-1, Math.min(1, inputData[i]));
-          pcmData[i] = sample < 0 ? sample * 32768 : sample * 32767;
-        }
-
-        const chunk = arrayBufferToBase64(pcmData.buffer);
-        socket.emit('audio_chunk', { audio: chunk, sampleRate: audioContext.sampleRate });
-      };
-
-      source.connect(audioProcessor);
-      audioProcessor.connect(audioContext.destination);
-    }
-
-    function cleanupMediaResources() {
-      if (audioProcessor) {
-        audioProcessor.disconnect();
-        audioProcessor.onaudioprocess = null;
-        audioProcessor = null;
-      }
-
-      if (audioContext) {
-        audioContext.close().catch(() => {});
-        audioContext = null;
-      }
-
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        mediaStream = null;
-      }
-    }
-
-    function arrayBufferToBase64(buffer) {
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    }
-
-    // 翻译和优化功能
-    async function translateText(text, targetLang) {
-      try {
-        // 实时翻译始终使用Helsinki-NLP（快速）
-        const response = await fetch('/api/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: text,
-            source_lang: languageSelect.value,
-            target_lang: targetLang,
-            use_qwen: false,  // 实时翻译使用Helsinki-NLP
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.warn('⚠️ 翻译失败:', errorData.error || response.statusText);
-          if (errorData.suggestion) {
-            console.info('💡', errorData.suggestion);
-          }
-          return text;
-        }
-        
-        const data = await response.json();
-        return data.translated_text || text;
-        
-      } catch (error) {
-        console.error('❌ 翻译错误:', error);
-        return text;
-      }
-    }
-
-    async function refineSubtitle(text) {
-      try {
-        const enableRefinement = document.getElementById('enableRefinement').checked;
-        if (!enableRefinement) return text;
-
-        const refinementModel = document.getElementById('refinementModel').value;
-        const fixPunctuation = document.getElementById('fixPunctuation').checked;
-        const fixGrammar = document.getElementById('fixGrammar').checked;
-        const removeFillers = document.getElementById('removeFillers').checked;
-        const formatSegments = document.getElementById('formatSegments').checked;
-
-        // 获取最近的字幕作为上下文（最多3条）
-        const subtitleItems = Array.from(document.querySelectorAll('.subtitle-item'));
-        const contextTexts = subtitleItems
-          .slice(-3)  // 最近3条
-          .map(item => {
-            const textElement = item.querySelector('.original-text p');
-            return textElement ? textElement.textContent : '';
-          })
-          .filter(t => t);
-
-        const response = await fetch('/api/refine_subtitle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: text,
-            model: refinementModel,
-            context: contextTexts,  // 传递上下文
-            language: selectedLanguage,  // 传递语言信息
-            options: {
-              fix_punctuation: fixPunctuation,
-              fix_grammar: fixGrammar,
-              remove_fillers: removeFillers,
-              format_segments: formatSegments
-            }
-          })
-        });
-        
-        if (!response.ok) throw new Error('优化失败');
-        const data = await response.json();
-        return data.refined_text || text;
-      } catch (error) {
-        console.error('优化错误:', error);
-        return text;
-      }
-    }
-
-    async function addSubtitle(text, timestamp = Date.now()) {
-      const subtitleId = ++currentSubtitleId;
-      const timeStr = new Date(timestamp).toLocaleTimeString();
-      
-      // 更新计数器
-      updateSubtitleCount();
-
-      // 先显示原始字幕
-      const subtitleElement = document.createElement('div');
-      subtitleElement.className = 'subtitle-item bg-white p-3 rounded-lg shadow-sm mb-2 border-l-4 border-gray-500';
-      subtitleElement.dataset.id = subtitleId;
-      
-      // 获取翻译设置
-      const translationEnabled = document.getElementById('enableTranslation')?.checked;
-      const targetLang = document.getElementById('targetLanguage')?.value;
-      
-      let originalHTML = `
-        <div class="flex justify-between items-start mb-1">
-          <span class="text-xs text-gray-500">${timeStr}</span>
-          <div class="flex gap-1">
-            <button onclick="deleteSubtitle(${subtitleId})" class="text-gray-400 hover:text-red-500 text-xs">×</button>
-          </div>
-        </div>
-        <div class="subtitle-content">
-          <div class="original-text">
-            <p class="text-gray-800 leading-relaxed">${escapeHtml(text)}</p>
-          </div>
-        </div>
-      `;
-
-      subtitleElement.innerHTML = originalHTML;
-
-      // 移除初始提示（查找并删除整个提示div）
-      const initialHintDiv = subtitleArea.querySelector('div.text-gray-500.text-center');
-      if (initialHintDiv) {
-        initialHintDiv.remove();
-      }
-
-      subtitleArea.appendChild(subtitleElement);
-      subtitleArea.scrollTop = subtitleArea.scrollHeight;
-
-      let processedText = text;
-      let translatedText = null;
-
-      // 异步处理优化（仅用于实时优化，如果启用）
-      // 注意：字幕优化主要用于批量处理，不建议实时启用
-      if (document.getElementById('enableRefinement')?.checked) {
-        showRefinementStatus(true);
-        processedText = await refineSubtitle(text);
-        hideRefinementStatus();
-        
-        // 更新显示优化后的文本
-        const originalDiv = subtitleElement.querySelector('.original-text p');
-        if (originalDiv) {
-          originalDiv.innerHTML = `${escapeHtml(processedText)} <span class="text-xs text-green-600">✨</span>`;
-        }
-      }
-
-      // 实时翻译：当启用翻译且有目标语言时自动翻译
-      if (translationEnabled && targetLang && targetLang !== languageSelect.value) {
-        showTranslationStatus(true);
-        translatedText = await translateText(processedText, targetLang);
-        hideTranslationStatus();
-        
-        // 分屏显示：原文和译文并排
-        const contentDiv = subtitleElement.querySelector('.subtitle-content');
-        contentDiv.className = 'subtitle-content grid grid-cols-2 gap-2';
-        
-        // 更新原文样式
-        const originalDiv = contentDiv.querySelector('.original-text');
-        originalDiv.className = 'original-text border-r border-gray-200 pr-2';
-        
-        // 添加翻译文本（右侧）
-        const translationDiv = document.createElement('div');
-        translationDiv.className = 'translation-text pl-2';
-        translationDiv.innerHTML = `
-          <p class="text-sm text-blue-700 leading-relaxed">${escapeHtml(translatedText)} <span class="text-xs">🌐</span></p>
-        `;
-        contentDiv.appendChild(translationDiv);
-        
-        // 更新边框颜色表示已翻译
-        subtitleElement.classList.remove('border-gray-500');
-        subtitleElement.classList.add('border-blue-500');
-      }
-
-      subtitles.push({ 
-        id: subtitleId, 
-        text: processedText, 
-        original: text,
-        translation: translatedText,
-        timestamp 
-      });
-    }
-    
-    // 按需翻译函数
-    async function translateOnDemand(subtitleId) {
-      const subtitleElement = document.querySelector(`[data-id="${subtitleId}"]`);
-      if (!subtitleElement) return;
-      
-      // 检查是否已翻译
-      if (subtitleElement.querySelector('.translation-text')) {
-        console.log('已翻译过，跳过');
-        return;
-      }
-      
-      const translateBtn = subtitleElement.querySelector('.translate-btn');
-      if (translateBtn) {
-        translateBtn.disabled = true;
-        translateBtn.textContent = '⏳';
-      }
-      
-      try {
-        // 获取原文
-        const originalText = subtitles.find(s => s.id === subtitleId)?.text || 
-                           subtitleElement.querySelector('.original-text p')?.textContent.replace('✨', '').trim();
-        
-        if (!originalText) return;
-        
-        const targetLang = document.getElementById('targetLanguage').value;
-        showTranslationStatus(true);
-        const translatedText = await translateText(originalText, targetLang);
-        hideTranslationStatus();
-        
-        // 分屏显示
-        const contentDiv = subtitleElement.querySelector('.subtitle-content');
-        contentDiv.className = 'subtitle-content grid grid-cols-2 gap-2';
-        
-        // 更新原文样式
-        const originalDiv = contentDiv.querySelector('.original-text');
-        originalDiv.className = 'original-text border-r border-gray-200 pr-2';
-        
-        // 添加翻译文本（右侧）
-        const translationDiv = document.createElement('div');
-        translationDiv.className = 'translation-text pl-2';
-        translationDiv.innerHTML = `
-          <p class="text-sm text-blue-700 leading-relaxed">${escapeHtml(translatedText)} <span class="text-xs">🌐</span></p>
-        `;
-        contentDiv.appendChild(translationDiv);
-        
-        // 更新边框和按钮
-        subtitleElement.classList.remove('border-gray-500');
-        subtitleElement.classList.add('border-blue-500');
-        
-        if (translateBtn) {
-          translateBtn.remove(); // 翻译后移除按钮
-        }
-        
-        // 更新数据
-        const subtitle = subtitles.find(s => s.id === subtitleId);
-        if (subtitle) {
-          subtitle.translation = translatedText;
-        }
-        
-      } catch (error) {
-        console.error('按需翻译失败:', error);
-        if (translateBtn) {
-          translateBtn.disabled = false;
-          translateBtn.textContent = '🌐';
-        }
-      }
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function updateSubtitleCount() {
-      const countElement = document.getElementById('subtitleCount');
-      if (countElement) {
-        countElement.textContent = `${subtitles.length + 1} 条`;
-      }
-    }
-
-    function showTranslationStatus(show) {
-      const status = document.getElementById('translationStatus');
-      if (status) {
-        status.classList.toggle('hidden', !show);
-      }
-    }
-
-    function hideTranslationStatus() {
-      setTimeout(() => showTranslationStatus(false), 1000);
-    }
-
-    function showRefinementStatus(show) {
-      const status = document.getElementById('refinementStatus');
-      if (status) {
-        status.classList.toggle('hidden', !show);
-      }
-    }
-
-    function hideRefinementStatus() {
-      setTimeout(() => showRefinementStatus(false), 1000);
-    }
-
-    function highlightKeywords(text) {
-      const keywords = ['讲座', '课程', '学习', '理解', '重点', '总结', '问题', '解答'];
-      let highlightedText = text;
-
-      keywords.forEach(keyword => {
-        const regex = new RegExp(`(${keyword})`, 'gi');
-        highlightedText = highlightedText.replace(regex, '<span class="bg-yellow-200 px-1 rounded">$1</span>');
-      });
-
-      return highlightedText;
-    }
-
-    function deleteSubtitle(id) {
-      const element = document.querySelector(`[onclick="deleteSubtitle(${id})"]`);
-      if (element) {
-        const wrapper = element.closest('.subtitle-item');
-        if (wrapper) {
-          wrapper.remove();
-        }
-      }
-      subtitles = subtitles.filter(s => s.id !== id);
-    }
-
-    function clearSubtitles() {
-      subtitleArea.innerHTML = `
-        <div class="text-gray-500 text-center py-8">
-          <svg class="mx-auto h-10 w-10 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-          </svg>
-          <p>字幕将在这里实时显示...</p>
-          <p class="text-sm mt-2">点击"开始监听"开始语音识别</p>
-          <p class="text-xs mt-2 text-gray-400">启用翻译可显示双语字幕 • 启用优化可提升质量</p>
-        </div>
-      `;
-      subtitles = [];
-      currentSubtitleId = 0;
-      updateSubtitleCount();
-    }
-
-    // UI 控制函数
-    function toggleAdvanced() {
-      const panel = document.getElementById('advancedPanel');
-      const icon = document.getElementById('advancedToggleIcon');
-      const text = document.getElementById('advancedToggleText');
-      
-      if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        icon.style.transform = 'rotate(180deg)';
-        text.textContent = '收起';
-      } else {
-        panel.classList.add('hidden');
-        icon.style.transform = 'rotate(0deg)';
-        text.textContent = '展开';
-      }
+        models.forEach(m => modelSelect.add(new Option(m.text, m.val)));
+        if (Array.from(modelSelect.options).some(o => o.value === current)) modelSelect.value = current;
     }
 
     function toggleTranslationSettings() {
-      const enabled = document.getElementById('enableTranslation').checked;
-      const settingsDiv = document.getElementById('translationSettings');
-      
-      if (enabled) {
-        settingsDiv.classList.remove('hidden');
-        // 自动设置目标语言
-        const targetLang = document.getElementById('targetLanguage');
-        if (!targetLang.value) {
-          const sourceLang = languageSelect.value;
-          // 如果是中文，默认翻译为英文；否则翻译为中文
-          targetLang.value = sourceLang === 'zh' ? 'en' : 'zh';
-        }
-      } else {
-        settingsDiv.classList.add('hidden');
-      }
+        const el = document.getElementById('translationSettings');
+        document.getElementById('enableTranslation').checked ? el.classList.remove('hidden') : el.classList.add('hidden');
     }
 
     function toggleRefinementSettings() {
-      const enabled = document.getElementById('enableRefinement').checked;
-      const settingsDiv = document.getElementById('refinementSettings');
-      
-      if (enabled) {
-        settingsDiv.classList.remove('hidden');
-      } else {
-        settingsDiv.classList.add('hidden');
-      }
+        const el = document.getElementById('refinementSettings');
+        document.getElementById('enableRefinement').checked ? el.classList.remove('hidden') : el.classList.add('hidden');
+    }
+
+    // Socket & Audio Logic
+    function setupSocket() {
+        socket = io(window.location.origin, { transports: ['polling', 'websocket'] });
+        socket.on('connect', () => console.log('Connected'));
+        socket.on('disconnect', () => stopListeningUI());
+        socket.on('transcription', (payload) => {
+            if(payload?.text) addSubtitle(payload.text, payload.timestamp);
+        });
+    }
+
+    async function toggleListening() {
+        if (listening) {
+            await stopListening();
+        } else {
+            await startListening();
+        }
+    }
+
+    async function startListening() {
+        try {
+            micBtn.disabled = true;
+            micStatus.textContent = 'Connecting...';
+
+            if (!socket.connected) socket.connect();
+
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, sampleRate: 16000 } });
+
+            socket.emit('start_transcription', {
+                model: modelSelect.value,
+                language: languageSelect.value
+            }, (resp) => {
+                if (resp?.status !== 'success') throw new Error(resp?.message || 'Failed to start');
+            });
+
+            startAudioStreaming();
+            startListeningUI();
+        } catch (e) {
+            console.error(e);
+            alert('Could not start recording: ' + e.message);
+            micBtn.disabled = false;
+        }
+    }
+
+    async function stopListening() {
+        stopListeningUI();
+        cleanupAudio();
+        if (socket?.connected) socket.emit('stop_transcription', {});
+    }
+
+    function startListeningUI() {
+        listening = true;
+        micBtn.disabled = false;
+        micBtn.classList.add('recording');
+        micStatus.textContent = 'Recording...';
+        micStatus.className = 'mt-4 text-sm font-medium text-red-500 animate-pulse';
+    }
+
+    function stopListeningUI() {
+        listening = false;
+        micBtn.disabled = false;
+        micBtn.classList.remove('recording');
+        micStatus.textContent = 'Tap to Record';
+        micStatus.className = 'mt-4 text-sm font-medium text-gray-500';
+    }
+
+    function startAudioStreaming() {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+        
+        audioProcessor.onaudioprocess = (e) => {
+            if (!listening || !socket.connected) return;
+            const input = e.inputBuffer.getChannelData(0);
+            const pcm = new Int16Array(input.length);
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                pcm[i] = s < 0 ? s * 32768 : s * 32767;
+            }
+            // Convert to Base64 manually to avoid external deps if possible, or send raw
+            // Ideally server expects b64
+            const binary = String.fromCharCode.apply(null, new Uint8Array(pcm.buffer));
+            socket.emit('audio_chunk', { audio: btoa(binary), sampleRate: audioContext.sampleRate });
+        };
+        
+        source.connect(audioProcessor);
+        audioProcessor.connect(audioContext.destination);
+    }
+
+    function cleanupAudio() {
+        if (audioProcessor) { audioProcessor.disconnect(); audioProcessor = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    }
+
+    // Transcript Logic
+    async function addSubtitle(text, timestamp = Date.now()) {
+        // Clear placeholder
+        if (subtitles.length === 0) subtitleArea.innerHTML = '';
+
+        const id = ++currentSubtitleId;
+        const timeStr = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        // Translation & Refinement Placeholders
+        let displayText = text;
+        let translatedText = null;
+        
+        // Create DOM
+        const item = document.createElement('div');
+        item.className = 'subtitle-item text-left';
+        item.dataset.id = id;
+        
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'timestamp';
+        dateDiv.innerText = timeStr;
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerText = displayText;
+        
+        item.appendChild(dateDiv);
+        item.appendChild(bubble);
+        subtitleArea.appendChild(item);
+        subtitleArea.scrollTop = subtitleArea.scrollHeight;
+        
+        // Process Translation
+        if (document.getElementById('enableTranslation').checked) {
+            const target = document.getElementById('targetLanguage').value;
+            // This would be an async fetch usually
+            try {
+                const resp = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text, source_lang: languageSelect.value, target_lang: target, use_qwen: false })
+                });
+                const data = await resp.json();
+                if (data.translated_text) {
+                    const tBubble = document.createElement('div');
+                    tBubble.className = 'bubble translated mt-2 block';
+                    tBubble.innerText = data.translated_text;
+                    item.appendChild(tBubble);
+                    translatedText = data.translated_text;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // Process Refinement
+        if (document.getElementById('enableRefinement').checked) {
+            // Async Refine
+            try {
+                const resp = await fetch('/api/refine_subtitle', {
+                     method: 'POST',
+                     headers: {'Content-Type': 'application/json'},
+                     body: JSON.stringify({
+                         text,
+                         model: document.getElementById('refinementModel').value,
+                         options: { fix_punctuation: true, fix_grammar: true }
+                     })
+                });
+                const data = await resp.json();
+                if (data.refined_text) {
+                    bubble.innerHTML = data.refined_text + ' <span class="text-green-500 ml-1 text-xs">✨</span>';
+                    displayText = data.refined_text;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        subtitles.push({ id, text: displayText, translation: translatedText, timestamp });
+        document.getElementById('subtitleCount').innerText = `${subtitles.length} lines`;
+    }
+
+    function clearSubtitles() {
+        subtitleArea.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-gray-400 py-20"><svg class="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg><p class="text-sm">Transcription will appear here...</p></div>`;
+        subtitles = [];
+        document.getElementById('subtitleCount').innerText = '0 lines';
     }
     
-    function toggleModelManagement() {
-      const panel = document.getElementById('modelManagementPanel');
-      const icon = document.getElementById('modelManagementIcon');
-      
-      if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        icon.style.transform = 'rotate(180deg)';
-      } else {
-        panel.classList.add('hidden');
-        icon.style.transform = 'rotate(0deg)';
-      }
-    }
-
-    function showSaveModal() {
-      saveModal.classList.remove('hidden');
-    }
-
-    function hideSaveModal() {
-      saveModal.classList.add('hidden');
-    }
-
     function saveSubtitles() {
-      const filename = document.getElementById('filenameInput').value || 'lecture_subtitles';
-      const format = document.getElementById('formatSelect').value;
+        const filename = document.getElementById('filenameInput').value || 'transcript';
+        const format = document.getElementById('formatSelect').value;
+        
+        let content = '';
+        subtitles.forEach((s, i) => {
+            const start = new Date(s.timestamp).toISOString().substr(11, 8);
+            const end = new Date(s.timestamp + 5000).toISOString().substr(11, 8);
 
-      let content = '';
-      let mimeType = 'text/plain';
-      let extension = 'txt';
-
-      switch (format) {
-        case 'vtt':
-          content = generateVTT();
-          mimeType = 'text/vtt';
-          extension = 'vtt';
-          break;
-        case 'srt':
-          content = generateSRT();
-          mimeType = 'text/plain';
-          extension = 'srt';
-          break;
-        default:
-          content = generateTXT();
-      }
-
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${filename}.${extension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      hideSaveModal();
-    }
-
-    function generateTXT() {
-      const hasTranslation = subtitles.some(s => s.translation);
-      
-      return subtitles.map(s => {
-        const time = new Date(s.timestamp).toLocaleString();
-        let text = `[${time}] ${s.text}`;
+            if (format === 'vtt') {
+                if (i === 0) content += 'WEBVTT\n\n';
+                content += `${i+1}\n${start}.000 --> ${end}.000\n${s.text}\n`;
+                if (s.translation) content += `${s.translation}\n`;
+                content += '\n';
+            } else if (format === 'srt') {
+                content += `${i+1}\n${start},000 --> ${end},000\n${s.text}\n`;
+                if (s.translation) content += `${s.translation}\n`;
+                content += '\n';
+            } else {
+                content += `[${start}] ${s.text}\n`;
+                if (s.translation) content += `       ${s.translation}\n`;
+                content += '\n';
+            }
+        });
         
-        if (hasTranslation && s.translation) {
-          text += `\n           ${s.translation}`;
-        }
-        
-        return text;
-      }).join('\n\n');
-    }
-
-    function generateVTT() {
-      let vtt = 'WEBVTT\n\n';
-      const hasTranslation = subtitles.some(s => s.translation);
-      
-      subtitles.forEach((s, index) => {
-        const start = new Date(s.timestamp).toISOString().substr(11, 12);
-        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 12);
-        
-        vtt += `${index + 1}\n${start} --> ${end}\n${s.text}`;
-        
-        if (hasTranslation && s.translation) {
-          vtt += `\n${s.translation}`;
-        }
-        
-        vtt += '\n\n';
-      });
-      return vtt;
-    }
-
-    function generateSRT() {
-      let srt = '';
-      const hasTranslation = subtitles.some(s => s.translation);
-      
-      subtitles.forEach((s, index) => {
-        const start = new Date(s.timestamp).toISOString().substr(11, 12).replace('.', ',');
-        const end = new Date(s.timestamp + 5000).toISOString().substr(11, 12).replace('.', ',');
-        
-        srt += `${index + 1}\n${start} --> ${end}\n${s.text}`;
-        
-        if (hasTranslation && s.translation) {
-          srt += `\n${s.translation}`;
-        }
-        
-        srt += '\n\n';
-      });
-      return srt;
+        const blob = new Blob([content], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        document.getElementById('saveModal').classList.add('hidden');
     }
 
     document.addEventListener('DOMContentLoaded', init);
-
-    function updateModelOptions() {
-      const language = languageSelect.value;
-      const modelSelect = document.getElementById('modelSelect');
-      const currentValue = modelSelect.value;
-      
-      // Clear current options
-      modelSelect.innerHTML = '';
-      
-      // 通用模型列表（支持多语言）
-      const universalModels = `
-        <option value="large-v3-turbo">large-v3-turbo (最快/推荐 - 多语言)</option>
-        <option value="large-v3">large-v3 (最新 - 多语言)</option>
-        <option value="large">large (多语言)</option>
-        <option value="medium">medium (多语言)</option>
-        <option value="small">small (多语言)</option>
-        <option value="base">base (多语言)</option>
-      `;
-      
-      if (language === 'zh') {
-        // 中文特化模型 + 通用模型
-        modelSelect.innerHTML = universalModels + `
-          <option value="sensevoice">SenseVoice (中文专用)</option>
-        `;
-        // 中文推荐使用 large-v3-turbo (速度快，准确度高)
-        modelSelect.value = 'large-v3-turbo';
-      } else if (language === 'en') {
-        // 英文特化模型 + 通用模型  
-        modelSelect.innerHTML = universalModels + `
-          <option value="distil-small.en">distil-small.en (英文专用/快速)</option>
-          <option value="distil-medium.en">distil-medium.en (英文专用/精确)</option>
-        `;
-        // 英文推荐使用 large-v3-turbo (最佳性能)
-        modelSelect.value = 'large-v3-turbo';
-      } else {
-        // 其他语言使用通用模型
-        modelSelect.innerHTML = universalModels;
-        // 其他语言推荐使用 large-v3-turbo
-        modelSelect.value = 'large-v3-turbo';
-      }
-      
-      // 尝试恢复之前的选择（如果仍然可用）
-      const options = Array.from(modelSelect.options).map(opt => opt.value);
-      if (options.includes(currentValue)) {
-        modelSelect.value = currentValue;
-      }
-      
-      console.log(`Language: ${language}, Selected model: ${modelSelect.value}, Available options: ${options.join(', ')}`);
-    }
-
-    window.addEventListener('beforeunload', () => {
-      cleanupMediaResources();
-      if (socket && socket.connected) {
-        socket.emit('stop_transcription', {});
-        socket.disconnect();
-      }
-    });
-
-    window.deleteSubtitle = deleteSubtitle;
-    window.updateModelOptions = updateModelOptions;
-    
-    // 测试函数：添加测试字幕
-    window.testAddSubtitle = function() {
-      console.log('🧪 测试添加字幕...');
-      console.log('📦 subtitleArea:', document.getElementById('subtitleArea'));
-      addSubtitle('这是一个测试字幕 This is a test subtitle', Date.now());
-      
-      // 延迟1秒后检查DOM
-      setTimeout(() => {
-        const area = document.getElementById('subtitleArea');
-        console.log('🔍 延迟检查 - 字幕区域子元素数:', area.children.length);
-        console.log('🔍 延迟检查 - 字幕区域HTML长度:', area.innerHTML.length);
-        console.log('🔍 延迟检查 - 字幕项数量:', area.querySelectorAll('.subtitle-item').length);
-        
-        if (area.children.length === 0 || area.querySelectorAll('.subtitle-item').length === 0) {
-          console.error('❌ 字幕元素没有被添加到DOM！');
-          console.log('📋 当前subtitleArea内容:', area.innerHTML);
-        } else {
-          console.log('✅ 字幕元素已成功添加！');
-        }
-      }, 1000);
-    };
-    
-    // 批量优化所有字幕
-    window.batchRefineAllSubtitles = async function() {
-      const enableRefinement = document.getElementById('enableRefinement')?.checked;
-      if (!enableRefinement) {
-        alert('请先启用"字幕优化"功能！');
-        return;
-      }
-      
-      if (subtitles.length === 0) {
-        alert('没有字幕可以优化！');
-        return;
-      }
-      
-      const model = document.getElementById('refinementModel')?.value || 'Qwen/Qwen3-1.7B';
-      const language = languageSelect.value;
-      const enableDeepThinking = document.getElementById('enableDeepThinking')?.checked || false;
-      
-      // 询问用户确认
-      const modeText = enableDeepThinking ? '深度思考模式（较慢但质量高）' : '标准模式';
-      if (!confirm(`即将使用 ${model} 优化 ${subtitles.length} 条字幕。\n模式：${modeText}\n这可能需要几分钟时间，是否继续？`)) {
-        return;
-      }
-      
-      const btn = document.getElementById('batchRefineBtn');
-      const originalText = btn.innerHTML;
-      
-      try {
-        // 显示进度
-        btn.disabled = true;
-        const progressText = enableDeepThinking ? '深度优化中...' : '优化中...';
-        btn.innerHTML = `<svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="ml-2">${progressText}</span>`;
-        
-        console.log('🚀 开始批量优化:', {
-          count: subtitles.length,
-          model: model,
-          language: language,
-          deepThinking: enableDeepThinking
-        });
-        
-        // 发送批量优化请求
-        const response = await fetch('/api/batch_refine_subtitles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subtitles: subtitles.map(s => ({ text: s.text })),
-            model: model,
-            language: language,
-            task: 'refine',
-            enable_thinking: enableDeepThinking  // 新增参数
-          })
-        });
-        
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || '优化失败');
-        }
-        
-        const data = await response.json();
-        console.log('✅ 批量优化完成:', data);
-        
-        // 更新UI显示优化后的字幕
-        if (data.success && data.results) {
-          for (const result of data.results) {
-            const subtitle = subtitles[result.index];
-            if (subtitle && result.refined !== result.original) {
-              // 更新数据
-              subtitle.text = result.refined;
-              
-              // 更新DOM显示
-              const subtitleElement = document.querySelector(`[data-id="${subtitle.id}"]`);
-              if (subtitleElement) {
-                const originalDiv = subtitleElement.querySelector('.original-text p');
-                if (originalDiv) {
-                  // 保留翻译部分，只更新原文
-                  const hasTranslation = subtitleElement.querySelector('.translation-text');
-                  originalDiv.innerHTML = `${escapeHtml(result.refined)} <span class="text-xs text-green-600">✨</span>`;
-                  
-                  // 如果有翻译，也重新翻译
-                  if (hasTranslation) {
-                    const targetLang = document.getElementById('targetLanguage')?.value;
-                    if (targetLang) {
-                      const translatedText = await translateText(result.refined, targetLang);
-                      hasTranslation.querySelector('p').innerHTML = 
-                        `${escapeHtml(translatedText)} <span class="text-xs">🌐</span>`;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          
-          alert(`✅ 优化完成！\n共处理 ${data.results.length} 条字幕`);
-        }
-        
-      } catch (error) {
-        console.error('❌ 批量优化失败:', error);
-        alert(`优化失败: ${error.message}`);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-      }
-    };
-    
-    // 测试函数：检查subtitleArea状态
-    window.checkSubtitleArea = function() {
-      const area = document.getElementById('subtitleArea');
-      console.log('📊 subtitleArea 检查:');
-      console.log('  - 存在:', !!area);
-      console.log('  - ID:', area?.id);
-      console.log('  - 类名:', area?.className);
-      console.log('  - 子元素数:', area?.children.length);
-      console.log('  - HTML长度:', area?.innerHTML.length);
-      console.log('  - 字幕项数:', area?.querySelectorAll('.subtitle-item').length);
-      return area;
-    };
   </script>
 </body>
 </html>

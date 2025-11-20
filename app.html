@@ -3,419 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 智能字幕生成器 - 专业视频字幕处理平台</title>
+    <title>Video Subtitle Generator - AI Studio</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         body { 
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #ffffff;
-            color: #111827;
-            font-weight: 400;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+            background-color: #F5F5F7;
+            color: #1D1D1F;
+            -webkit-font-smoothing: antialiased;
         }
         
-        .elegant-card {
-            background: #ffffff;
-            border: 1px solid #f3f4f6;
-            transition: border-color 0.15s ease;
+        /* Animations */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        
-        .elegant-card:hover {
-            border-color: #e5e7eb;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        
-        .minimal-shadow {
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
-        
-        .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+
+        /* Apple-style components */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            animation: fadeIn 0.5s ease-out;
         }
-        
-        .subtitle-editor { 
-            min-height: 400px; 
-            max-height: 600px; 
-            overflow-y: auto; 
-            font-family: 'JetBrains Mono', monospace;
-            line-height: 1.6;
+
+        .apple-card {
+            background: #FFFFFF;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+            overflow: hidden;
+            animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        
-        .fade-in { 
-            animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+
+        .apple-input {
+            background: #F5F5F7;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            padding: 12px 16px;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            font-size: 15px;
+            color: #1D1D1F;
         }
-        
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(20px); } 
-            to { opacity: 1; transform: translateY(0); } 
+
+        .apple-input:focus {
+            background: #FFFFFF;
+            border-color: #0071E3;
+            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+            outline: none;
+            transform: scale(1.01);
         }
-        
-        .slide-in {
-            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+        .apple-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
         }
-        
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        
-        .processing-animation {
-            animation: processingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        @keyframes processingPulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
-        }
-        
-        .video-container {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
+
+        .btn-primary {
+            background: #0071E3;
+            color: white;
+            border-radius: 980px;
+            font-weight: 500;
+            font-size: 15px;
+            padding: 10px 24px;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            border: none;
             position: relative;
             overflow: hidden;
         }
-        
-        .video-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%);
+
+        .btn-primary:hover {
+            background: #0077ED;
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.25);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary:disabled {
+            background: #999999;
+            transform: none;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: rgba(0, 113, 227, 0.1);
+            color: #0071E3;
+            border-radius: 980px;
+            font-weight: 500;
+            font-size: 14px;
+            padding: 8px 20px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 113, 227, 0.15);
+            transform: scale(1.02);
+        }
+
+        .video-container {
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
         }
         
-        #subtitleOverlay { 
-            pointer-events: none; 
-            background: rgba(0, 0, 0, 0.85); 
-            backdrop-filter: blur(8px);
+        .video-container:hover {
+            transform: scale(1.005);
+        }
+
+        .subtitle-editor {
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.6;
+            font-size: 14px;
+            color: #424245;
+            background: #FAFAFA;
             border-radius: 12px;
-            padding: 16px 24px;
-            margin: 0 20px;
-            font-weight: 600;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            padding: 20px;
+            transition: all 0.3s ease;
         }
         
-        .custom-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: #e5e7eb #f9fafb;
+        .subtitle-editor:focus {
+            outline: none;
+            background: #FFFFFF;
+            box-shadow: inset 0 0 0 2px #0071E3;
         }
-        
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f9fafb;
-            border-radius: 4px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 4px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-        
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .feature-icon {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .progress-ring {
-            background: conic-gradient(from 0deg, #667eea, #764ba2, #667eea);
-            border-radius: 50%;
-            padding: 4px;
-        }
-        
-        .progress-ring-inner {
-            background: white;
-            border-radius: 50%;
-            width: 100%;
-            height: 100%;
-        }
-        
-        /* 自定义开关样式 */
-        #useFasterCheck:checked + div {
-            background: linear-gradient(to right, #667eea, #764ba2);
-        }
-        
-        #useFasterCheck:checked + div .dot {
-            transform: translateX(20px);
-        }
-        
-        .dot {
-            top: 2px;
-            left: 2px;
-        }
-        
-        /* 卡片悬停效果 */
-        .card:hover {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        
-        /* 现代滚动条 */
+
+        /* Custom Scrollbar for editors */
         .subtitle-editor::-webkit-scrollbar {
             width: 8px;
         }
-        
         .subtitle-editor::-webkit-scrollbar-track {
-            background: rgba(229, 231, 235, 0.5);
-            border-radius: 10px;
+            background: transparent;
         }
-        
         .subtitle-editor::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            border: 2px solid transparent;
-            background-clip: content-box;
+            background: #d2d2d7;
+            border-radius: 4px;
         }
-        
         .subtitle-editor::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            background-clip: content-box;
+            background: #86868b;
+        }
+
+        /* Section Headers */
+        .section-title {
+            font-size: 19px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #1D1D1F;
         }
         
-        /* 输入框聚焦效果 */
-        input:focus, select:focus, .subtitle-editor:focus {
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        .section-desc {
+            font-size: 14px;
+            color: #86868b;
+            margin-bottom: 24px;
         }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #86868b;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .status-idle { background: #F5F5F7; color: #86868b; }
+        .status-processing { background: rgba(0, 113, 227, 0.1); color: #0071E3; }
+        .status-success { background: rgba(52, 199, 89, 0.1); color: #34C759; }
+        .status-error { background: rgba(255, 59, 48, 0.1); color: #FF3B30; }
+
+        /* Progress Bar */
+        .progress-container {
+            height: 6px;
+            background: #F5F5F7;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #0071E3;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Progress Shimmer */
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: translateX(-100%);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Modal Animation */
+        #modelManagementModal .bg-white {
+            animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        /* Drag Pulse */
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 113, 227, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0); }
+        }
+        
+        .drag-active {
+            border-color: #0071E3 !important;
+            animation: pulse-border 1.5s infinite;
+        }
+
     </style>
 </head>
-<body class="min-h-screen">
-  <!-- 顶部导航 -->
-  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+<body class="pb-20">
+
+  <!-- Navigation -->
+  <nav class="glass-nav sticky top-0 z-50 w-full">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m0 0V1a1 1 0 011-1h2a1 1 0 011 1v18a1 1 0 01-1 1h-2a1 1 0 01-1-1V4M7 4H5a1 1 0 00-1 1v18a1 1 0 001 1h2a1 1 0 001-1V5a1 1 0 00-1-1z"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-xl font-semibold text-gray-900">AI 智能字幕生成器</h1>
-          </div>
-        </div>
-        <div class="flex items-center space-x-3">
-          <a href="realtime.html" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-900 border border-transparent rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-            </svg>
-            实时转录
+      <div class="flex justify-between items-center h-14">
+        <div class="flex items-center space-x-4">
+          <a href="index.html" class="flex items-center space-x-2 text-gray-900 hover:opacity-70 transition-opacity">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+              <span class="font-medium text-sm">Back</span>
           </a>
-          <button onclick="openModelModal()" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            模型管理
-          </button>
+          <div class="h-4 w-px bg-gray-300"></div>
+          <span class="font-semibold text-sm">Video Subtitles</span>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button onclick="openModelModal()" class="text-sm font-medium text-[#0071E3] hover:opacity-70 transition-opacity flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                Models
+            </button>
         </div>
       </div>
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
 
-    <!-- 控制面板 -->
-    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
-      <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900">视频处理控制台</h2>
-        <p class="text-sm text-gray-600 mt-1">选择视频文件并配置处理参数</p>
+    <!-- Control Panel -->
+    <div class="apple-card p-8 mb-8">
+      <div class="flex flex-col md:flex-row md:items-start justify-between mb-6">
+          <div>
+              <h2 class="section-title">Configuration</h2>
+              <p class="section-desc">Upload a video or paste a link to begin.</p>
+          </div>
+
+          <!-- Status Display -->
+          <div class="flex items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-100">
+              <span class="text-xs font-medium text-gray-500 mr-2">Status:</span>
+              <span id="status" class="text-xs font-medium text-gray-800">Idle</span>
+              <div id="spinner" class="ml-2 hidden">
+                  <svg class="animate-spin h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+              </div>
+          </div>
+      </div>
+
+      <!-- Input Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Source Selection -->
+        <div class="space-y-4">
+            <div>
+                <label>Select Video File</label>
+                <div class="flex items-center space-x-3">
+                    <label class="cursor-pointer bg-white border border-gray-200 hover:border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                        Choose File...
+                        <input type="file" id="videoFile" accept="video/*" class="hidden">
+                    </label>
+                    <span id="selectedVideoName" class="text-sm text-gray-500 truncate max-w-xs">No file selected</span>
+                </div>
+            </div>
+
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-200"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-2 bg-white text-gray-400">or</span>
+                </div>
+            </div>
+
+            <div>
+                <label>Video URL</label>
+                <div class="flex space-x-2">
+                    <input id="videoUrlInput" type="text" placeholder="YouTube or direct link..." class="apple-input w-full">
+                    <button id="fetchBtn" class="bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-colors">
+                        Fetch
+                    </button>
+                    <button id="previewBtn" class="bg-white border border-gray-200 text-gray-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+                        Preview
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Settings -->
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label>Model</label>
+                <select id="modelSelect" class="apple-input apple-select w-full"></select>
+            </div>
+            <div>
+                <label>Mode</label>
+                <select id="subtitleModeSelect" class="apple-input apple-select w-full">
+                    <option value="original">Original</option>
+                    <option value="translated">Translated</option>
+                    <option value="bilingual">Bilingual</option>
+                </select>
+            </div>
+            <div>
+                <label>Source Language</label>
+                <select id="sourceLangSelect" class="apple-input apple-select w-full"></select>
+            </div>
+            <div>
+                <label>Target Language</label>
+                <select id="targetLangSelect" class="apple-input apple-select w-full"></select>
+            </div>
+        </div>
+      </div>
+
+      <!-- Advanced & Action -->
+      <div class="border-t border-gray-100 pt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="flex flex-wrap items-center gap-6">
+              <label class="flex items-center cursor-pointer mb-0">
+                  <input type="checkbox" id="useFasterCheck" class="w-4 h-4 text-[#0071E3] border-gray-300 rounded focus:ring-[#0071E3]">
+                  <span class="ml-2 text-sm text-gray-700">Use Faster-Whisper</span>
+              </label>
+
+              <div class="flex items-center space-x-3 bg-gray-50 px-3 py-1.5 rounded-lg">
+                  <span class="text-xs text-gray-500 font-medium">Subtitle Style</span>
+                  <div class="h-4 w-px bg-gray-200"></div>
+                  <input type="color" id="subtitleColor" value="#ffffff" class="h-6 w-8 border-none bg-transparent cursor-pointer">
+                  <input type="range" id="subtitleSize" min="12" max="48" value="18" class="w-20 accent-[#0071E3]">
+                  <span id="subtitleSizeVal" class="text-xs text-gray-500 w-8">18px</span>
+              </div>
+          </div>
+
+          <button id="generateBtn" onclick="startProcess()" class="btn-primary flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Generate Subtitles
+          </button>
       </div>
       
-      <!-- 视频选择 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">1. 选择视频文件</label>
-          <input type="file" id="videoFile" accept="video/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-900 file:text-white hover:file:bg-gray-800 border border-gray-300 rounded-md">
-          <input type="text" id="selectedVideoName" placeholder="未选择视频文件" readonly class="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm text-gray-900">
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">或输入视频链接</label>
-          <div class="flex space-x-2">
-            <input id="videoUrlInput" placeholder="粘贴 YouTube 或视频链接..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-            <button id="fetchBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-              </svg>
-              获取
-            </button>
-            <button id="previewBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15"/>
-              </svg>
-              预览
-            </button>
+      <!-- Progress Bar -->
+      <div id="progressBar" class="mt-6 hidden">
+          <div class="flex justify-between text-xs text-gray-500 mb-1">
+              <span id="progressText">Processing...</span>
           </div>
-        </div>
-      </div>
-
-      <!-- 模型和翻译设置 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">2. 选择模型</label>
-          <select id="modelSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">源语言</label>
-          <select id="sourceLangSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">目标语言</label>
-          <select id="targetLangSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-900 mb-2">字幕模式</label>
-          <select id="subtitleModeSelect" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900">
-            <option value="original">原文</option>
-            <option value="translated">翻译</option>
-            <option value="bilingual">双语</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 高级选项和生成按钮 -->
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center space-x-6">
-          <label class="inline-flex items-center">
-            <input type="checkbox" id="useFasterCheck" class="rounded border-gray-300 text-gray-900 shadow-sm focus:border-gray-900 focus:ring focus:ring-gray-200 focus:ring-opacity-50">
-            <span class="ml-2 text-sm text-gray-700">使用 Faster-Whisper</span>
-          </label>
-          
-          <div class="flex items-center space-x-3">
-            <label class="text-sm text-gray-700">字幕样式:</label>
-            <input type="color" id="subtitleColor" value="#ffffff" class="h-8 w-16 border border-gray-300 rounded cursor-pointer">
-            <input type="range" id="subtitleSize" min="12" max="48" value="18" class="w-20">
-            <span id="subtitleSizeVal" class="text-sm text-gray-700 min-w-8">18px</span>
+          <div class="progress-container">
+              <div id="progressFill" class="progress-fill" style="width: 0%"></div>
           </div>
-        </div>
-        
-        <button id="generateBtn" onclick="startProcess()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900">
-          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-          </svg>
-          开始生成字幕
-        </button>
       </div>
     </div>
 
-    <!-- 状态显示 -->
-    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          <span class="text-lg font-semibold text-gray-900">处理状态:</span>
-          <span id="status" class="ml-3 px-3 py-1 bg-gray-100 text-gray-800 rounded-md text-sm font-medium">空闲中</span>
-          <div id="spinner" class="ml-3 hidden">
-            <svg class="animate-spin h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
+    <!-- Video Player -->
+    <div class="apple-card p-0 mb-8 bg-black overflow-hidden shadow-2xl">
+        <div id="playerContainer" class="relative w-full bg-black" style="min-height: 400px; display: flex; align-items: center; justify-content: center;">
+            <video id="videoPlayer" class="w-full h-auto max-h-[70vh]" controls style="display:none;">
+                Your browser does not support the video tag.
+            </video>
+            <!-- Overlay for custom subtitles if needed -->
+            <div id="subtitleOverlay" class="absolute inset-x-0 bottom-12 text-center transition-all duration-200 pointer-events-none" style="text-shadow: 0 2px 8px rgba(0,0,0,0.8);"></div>
         </div>
-        <div class="text-sm text-gray-500" id="progressText"></div>
-      </div>
-      <div id="progressBar" class="w-full bg-gray-200 rounded-full h-2 mt-4 hidden">
-        <div id="progressFill" class="bg-gray-900 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-      </div>
     </div>
 
-    <!-- 视频播放器 -->
-    <div class="elegant-card rounded-lg p-6 mb-6 minimal-shadow">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">视频播放器</h2>
-        <div class="flex space-x-2">
-          <button id="fullscreenBtn" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-            </svg>
-          </button>
+    <!-- Editors -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        <!-- Original Subtitles -->
+        <div class="apple-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-semibold text-gray-900">Original Subtitles</h3>
+                <button id="downloadOriginalBtn" class="text-[#0071E3] hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    VTT
+                </button>
+            </div>
+            <div id="originalSubtitles" class="subtitle-editor" contenteditable="true" placeholder="Waiting for subtitles..."></div>
         </div>
-      </div>
-      
-      <div id="playerContainer" class="relative w-full video-container rounded-lg overflow-hidden">
-        <video id="videoPlayer" class="w-full h-auto max-h-96 bg-black" controls style="display:block;">
-          您的浏览器不支持视频播放。
-        </video>
-        <!-- 字幕叠加层 -->
-        <div id="subtitleOverlay" class="absolute inset-x-0 bottom-8 text-center text-white text-lg font-semibold px-4 py-2 mx-4 rounded-lg hidden whitespace-pre-line"></div>
-      </div>
+
+        <!-- Translated Subtitles -->
+        <div class="apple-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-semibold text-gray-900">Translated Subtitles</h3>
+                <button id="downloadTranslatedBtn" class="text-[#0071E3] hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    VTT
+                </button>
+            </div>
+            <div id="translatedSubtitles" class="subtitle-editor" contenteditable="true" placeholder="Translation will appear here..."></div>
+        </div>
     </div>
 
-    <!-- 字幕编辑器 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 原文字幕 -->
-      <div class="elegant-card rounded-lg overflow-hidden minimal-shadow">
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">原文字幕</h2>
-          <button id="downloadOriginalBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            下载 VTT
-          </button>
-        </div>
-        <div class="p-6">
-          <div id="originalSubtitles" class="subtitle-editor w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-gray-50 text-sm font-mono" contenteditable="true" placeholder="原文字幕将在这里显示..."></div>
-        </div>
-      </div>
-
-      <!-- 翻译字幕 -->
-      <div class="elegant-card rounded-lg overflow-hidden minimal-shadow">
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900">翻译字幕</h2>
-          <button id="downloadTranslatedBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            下载 VTT
-          </button>
-        </div>
-        <div class="p-6">
-          <div id="translatedSubtitles" class="subtitle-editor w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-gray-50 text-sm font-mono" contenteditable="true" placeholder="翻译字幕将在这里显示..."></div>
-        </div>
-      </div>
-    </div>
   </main>
+
+    <!-- Model Management Modal -->
+    <div id="modelManagementModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden z-[100] flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0">
+                <h3 class="text-lg font-semibold text-gray-900">Model Management</h3>
+                <button onclick="closeModelModal()" class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto bg-[#F5F5F7]">
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                        <h4 class="font-medium text-gray-900 mb-3 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                            Whisper Models
+                        </h4>
+                        <ul id="whisperModelList" class="space-y-2"></ul>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                        <h4 class="font-medium text-gray-900 mb-3 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+                            Translation Models
+                        </h4>
+                        <ul id="translationModelList" class="space-y-2"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <button onclick="closeModelModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+                    Close
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 模态框控制函数
+        // --- Logic from previous file maintained below ---
+
+        // Modal Control
         function openModelModal() {
-            document.getElementById('modelManagementModal').classList.remove('hidden');
+            const modal = document.getElementById('modelManagementModal');
+            modal.classList.remove('hidden');
+            // Re-trigger animation
+            const panel = modal.querySelector('.bg-white');
+            panel.style.animation = 'none';
+            panel.offsetHeight; /* trigger reflow */
+            panel.style.animation = null;
             populateModelStatus();
         }
 
         function closeModelModal() {
-            document.getElementById('modelManagementModal').classList.add('hidden');
+            const modal = document.getElementById('modelManagementModal');
+            // Add fade out logic if desired, simple hide for now
+            modal.classList.add('hidden');
         }
 
-        // 更新状态显示
+        // UI Update Helpers
         function updateStatus(message, isLoading = false) {
             const statusEl = document.getElementById('status');
             const spinner = document.getElementById('spinner');
@@ -426,15 +514,15 @@
             
             if (isLoading) {
                 spinner.classList.remove('hidden');
-                statusEl.className = 'ml-3 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium';
+                statusEl.className = 'text-xs font-medium text-[#0071E3]';
                 generateBtn.disabled = true;
-                generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                generateBtn.classList.add('opacity-50');
             } else {
                 spinner.classList.add('hidden');
-                statusEl.className = 'ml-3 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium';
+                statusEl.className = 'text-xs font-medium text-gray-800';
                 progressBar.classList.add('hidden');
                 generateBtn.disabled = false;
-                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                generateBtn.classList.remove('opacity-50');
             }
         }
 
@@ -453,38 +541,31 @@
         const modelSelect = document.getElementById('modelSelect');
         const sourceLangSelect = document.getElementById('sourceLangSelect');
         const targetLangSelect = document.getElementById('targetLangSelect');
-        const generateBtn = document.getElementById('generateBtn');
-        const statusEl = document.getElementById('status');
-        const spinner = document.getElementById('spinner');
+        const subtitleModeSelect = document.getElementById('subtitleModeSelect');
         const videoPlayer = document.getElementById('videoPlayer');
         const originalSubtitlesEl = document.getElementById('originalSubtitles');
         const translatedSubtitlesEl = document.getElementById('translatedSubtitles');
         const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
         const downloadTranslatedBtn = document.getElementById('downloadTranslatedBtn');
-    const subtitleModeSelect = document.getElementById('subtitleModeSelect');
 
         let originalVttContent = '';
         let translatedVttContent = '';
         let uploadedVideoPath = '';
-        let translationPairs = []; // To store the fetched translation pairs
-    let isYouTube = false;
-    let ytPlayer = null;
-    let overlayTimer = null;
-    let _pendingYtId = null;
+        let translationPairs = [];
+        let isYouTube = false;
+        let ytPlayer = null;
+        let overlayTimer = null;
 
-        // Helpers to parse and build VTT
+        // --- VTT Processing ---
         function parseVttCues(vtt) {
             if (!vtt) return [];
             const lines = vtt.split(/\r?\n/);
             const cues = [];
             let i = 0;
-            // skip WEBVTT header if present
             if (lines[i] && lines[i].startsWith('WEBVTT')) i++;
             while (i < lines.length) {
-                // skip empty lines
                 while (i < lines.length && lines[i].trim() === '') i++;
                 if (i >= lines.length) break;
-                // optional cue id
                 let idLine = null;
                 if (lines[i] && !lines[i].includes('-->')) {
                     idLine = lines[i].trim();
@@ -530,13 +611,12 @@
         }
 
         function updateVideoTracks() {
-            // Remove existing custom tracks
             const oldTracks = videoPlayer.querySelectorAll('track[data-generated]');
             oldTracks.forEach(t => t.remove());
 
             const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
-            // If using iframe (YouTube), show overlay instead of native track
             const subtitleOverlay = document.getElementById('subtitleOverlay');
+
             if (isYouTube) {
                 subtitleOverlay.style.display = 'block';
                 startOverlaySync();
@@ -544,6 +624,7 @@
                 subtitleOverlay.style.display = 'none';
                 stopOverlaySync();
             }
+
             if (mode === 'original' && originalVttContent) {
                 if (!isYouTube) {
                     const track = document.createElement('track');
@@ -578,7 +659,6 @@
                     track.default = true;
                     videoPlayer.appendChild(track);
                 }
-                // if YouTube, ensure overlay is enabled - overlay rendering happens in sync loop
             }
         }
 
@@ -587,14 +667,11 @@
         }
 
         function getCurrentTimeSeconds() {
-            // If we have a YT player instance, use its currentTime (more accurate)
             try {
                 if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
                     return ytPlayer.getCurrentTime() || 0;
                 }
-            } catch (e) {
-                // fallback
-            }
+            } catch (e) {}
             return videoPlayer.currentTime || 0;
         }
 
@@ -605,7 +682,6 @@
                 document.getElementById('subtitleOverlay').innerText = '';
                 return;
             }
-            // find cue where start<=t<end
             for (let i=0;i<cues.length;i++){
                 const s = parseTimeToSeconds(cues[i].start);
                 const e = parseTimeToSeconds(cues[i].end);
@@ -618,7 +694,6 @@
         }
 
         function parseTimeToSeconds(ts) {
-            // ts format HH:MM:SS.mmm or MM:SS.mmm
             if (!ts) return 0;
             const parts = ts.split(':').map(Number);
             if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
@@ -642,30 +717,27 @@
             document.getElementById('subtitleOverlay').innerText = '';
         }
 
-        // Fetch initial data on page load
+        // --- Initialization ---
         window.onload = async () => {
             try {
-                // Fetch whisper models
                 const modelsResponse = await fetch('/models');
                 const models = await modelsResponse.json();
                 models.forEach(model => modelSelect.add(new Option(model, model)));
 
-                // Fetch translation pairs
                 const pairsResponse = await fetch('/translation_pairs');
                 translationPairs = await pairsResponse.json();
 
-                // Populate source language dropdown
                 const sourceLanguages = [...new Set(translationPairs.map(p => p.source))];
                 sourceLanguages.forEach(lang => sourceLangSelect.add(new Option(lang, lang)));
 
-                // Trigger change to populate target dropdown initially
                 updateTargetLanguages();
 
             } catch (error) {
-                updateStatus('Error loading initial data. Please reload.', true);
+                updateStatus('Error loading initial data.', true);
                 console.error('Initialization error:', error);
             }
-                    // Wire fetch button after initialization (start background fetch and poll status)
+
+            // Fetch Button
             const fetchBtn = document.getElementById('fetchBtn');
             const videoUrlInput = document.getElementById('videoUrlInput');
             fetchBtn.addEventListener('click', async (e) => {
@@ -673,9 +745,6 @@
                 const url = videoUrlInput.value.trim();
                 if (!url) return alert('Please enter a URL to fetch');
 
-                // Always use server-side fetch to download a playable local file (prefer 720p) and then play with native video element
-
-                // Otherwise perform the normal fetch/download flow
                 fetchBtn.disabled = true;
                 updateStatus('Starting fetch...');
                 try {
@@ -689,62 +758,51 @@
                     const videoId = data.video_id;
                     updateStatus('Downloading video...');
 
-                    // Poll status
                     const poll = setInterval(async () => {
                         try {
                             const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
                             const sinfo = await sresp.json();
-                                if (sinfo.status === 'Downloading...') {
+                            if (sinfo.status === 'Downloading...') {
                                 updateStatus('Downloading video...');
                             } else if (sinfo.status === 'Ready') {
                                 clearInterval(poll);
                                 fetchBtn.disabled = false;
                                 let returnedPath = sinfo.path;
-                                // If the returned path is a subtitle file, try to pick a matching video/audio file
+
+                                // Check if it's a subtitle file and try to find matching video
                                 const lower = returnedPath ? returnedPath.toLowerCase() : '';
-                                const isSubtitle = lower.endsWith('.vtt') || lower.endsWith('.srt') || lower.endsWith('.ass') || lower.endsWith('.sub');
+                                const isSubtitle = lower.endsWith('.vtt') || lower.endsWith('.srt') || lower.endsWith('.ass');
                                 if (isSubtitle) {
                                     const base = returnedPath.replace(/\.[^.]+$/, '');
-                                    const preferred = ['.mp4', '.mkv', '.webm', '.mov', '.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg', '.opus'];
+                                    const preferred = ['.mp4', '.mkv', '.webm', '.mov'];
                                     let found = null;
                                     for (const ext of preferred) {
                                         const candidate = base + ext;
                                         try {
                                             const head = await fetch(candidate, { method: 'HEAD' });
                                             if (head && head.ok) { found = candidate; break; }
-                                        } catch (e) {
-                                            // ignore
-                                        }
+                                        } catch (e) {}
                                     }
-                                    if (found) {
-                                        returnedPath = found;
-                                    } else {
-                                        updateStatus('Fetched only a subtitle file; original video not found locally. You can upload the video or try fetching again.', true);
-                                    }
+                                    if (found) returnedPath = found;
                                 }
 
                                 uploadedVideoPath = returnedPath;
-                                // ensure native player is visible and any iframe removed
                                 const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
                                 if (existingIframe) existingIframe.remove();
                                 isYouTube = false;
                                 videoPlayer.style.display = 'block';
                                 videoPlayer.src = uploadedVideoPath;
-                                const selectedVideoName = document.getElementById('selectedVideoName');
-                                selectedVideoName.value = uploadedVideoPath ? uploadedVideoPath.split('/').pop() : '';
-                                updateStatus('Fetch complete. Ready to extract subtitles.');
+                                document.getElementById('selectedVideoName').textContent = uploadedVideoPath ? uploadedVideoPath.split('/').pop() : 'Remote File';
+                                updateStatus('Fetch complete. Ready to extract.');
                             } else if (sinfo.status === 'Error') {
                                 clearInterval(poll);
                                 fetchBtn.disabled = false;
                                 updateStatus(`Fetch error: ${sinfo.error}`, true);
-                            } else {
-                                // unknown status string
-                                updateStatus(`Status: ${sinfo.status}`);
                             }
                         } catch (err) {
                             clearInterval(poll);
                             fetchBtn.disabled = false;
-                            updateStatus(`Error checking fetch status: ${err.message}`, true);
+                            updateStatus(`Error checking status: ${err.message}`, true);
                         }
                     }, 2000);
 
@@ -754,9 +812,8 @@
                 }
             });
 
-            // Preview button: load YouTube IFrame API and create an embedded player for overlay preview
+            // YouTube Preview
             const previewBtnEl = document.getElementById('previewBtn');
-            // Simple promise wrapper so we only load the API once
             const youtubeApiPromise = (function(){
                 let p = null;
                 return function() {
@@ -768,7 +825,6 @@
                             tag.src = 'https://www.youtube.com/iframe_api';
                             document.head.appendChild(tag);
                             window.onYouTubeIframeAPIReady = function() { resolve(window.YT); };
-                            // Timeout in case API fails
                             setTimeout(() => { if (!window.YT) reject(new Error('YouTube API load timeout')); }, 10000);
                         } catch (e) { reject(e); }
                     });
@@ -781,60 +837,54 @@
                     const u = new URL(url);
                     if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v');
                     if (u.hostname === 'youtu.be') return u.pathname.slice(1);
-                } catch (e) { /* ignore */ }
+                } catch (e) { }
                 return null;
             }
 
             previewBtnEl.addEventListener('click', async (ev) => {
                 ev.preventDefault();
                 const url = (document.getElementById('videoUrlInput') || {}).value || '';
-                if (!url) return alert('Please enter a YouTube URL to preview');
+                if (!url) return alert('Please enter a YouTube URL');
                 const vid = getYouTubeIdFromUrl(url.trim());
                 if (!vid) return alert('Not a valid YouTube URL');
                 try {
                     const YT = await youtubeApiPromise();
-                    // Clean up any existing YT player or iframe
                     try { if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy(); } catch (e) { }
                     const existingIframe = document.getElementById('youtubeIframe') || document.querySelector('#playerContainer iframe');
                     if (existingIframe) existingIframe.remove();
-                    // Hide native video element
+
                     videoPlayer.style.display = 'none';
                     isYouTube = true;
-                    // Insert container for YT player
+
                     const container = document.getElementById('playerContainer');
                     const div = document.createElement('div');
                     div.id = 'youtubeIframe';
                     div.style.width = '100%';
-                    div.style.height = '480px';
+                    div.style.height = '100%';
+                    div.style.position = 'absolute';
                     container.appendChild(div);
 
-                    // Create YT player
                     ytPlayer = new YT.Player('youtubeIframe', {
-                        height: '480',
+                        height: '100%',
                         width: '100%',
                         videoId: vid,
                         playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
                         events: {
                             onReady: (e) => {
-                                // Start overlay sync (user can press play in the embedded player)
                                 document.getElementById('subtitleOverlay').style.display = 'block';
                                 startOverlaySync();
-                            },
-                            onStateChange: (e) => {
-                                // keep overlay in sync; nothing else required here
                             }
                         }
                     });
                 } catch (err) {
-                    console.error('YouTube preview error', err);
-                    alert('YouTube preview failed: ' + (err && err.message ? err.message : err));
+                    alert('YouTube preview failed: ' + err.message);
                 }
             });
         };
 
         function updateTargetLanguages() {
             const selectedSource = sourceLangSelect.value;
-            targetLangSelect.innerHTML = ''; // Clear existing options
+            targetLangSelect.innerHTML = '';
             translationPairs
                 .filter(p => p.source === selectedSource)
                 .forEach(p => targetLangSelect.add(new Option(p.target, p.target)));
@@ -842,20 +892,17 @@
 
         sourceLangSelect.addEventListener('change', updateTargetLanguages);
 
-        // updateStatus function moved to top for Tailwind compatibility
-
+        // --- Processing Logic ---
         async function startProcess() {
             const file = videoFileInput.files[0];
-            // Allow using a previously fetched/uploaded video if no file is selected
             if (!file && !uploadedVideoPath) {
-                alert('请先选择视频文件或获取视频。');
+                alert('Please select a video file or fetch a URL first.');
                 return;
             }
 
-            updateStatus('开始处理...', true);
+            updateStatus('Starting process...', true);
 
             try {
-                // 1. Upload video only if a local file was chosen
                 if (file) {
                     updateStatus('Uploading video...');
                     const formData = new FormData();
@@ -866,85 +913,58 @@
                     if (uploadData.error) throw new Error(uploadData.error);
 
                     uploadedVideoPath = uploadData.video_path;
-                    // If a YouTube link was provided via fetch flow, uploadedVideoPath is local path; keep native
                     isYouTube = false;
                     videoPlayer.style.display = 'block';
                     videoPlayer.src = uploadedVideoPath;
-                } else {
-                    // Use the already-fetched video on the server
-                    updateStatus('Using fetched video...');
-                    // If the fetched path is an actual remote URL (YouTube), request server to download it first
-                    const url = uploadedVideoPath;
-                    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
-                        updateStatus('Requesting server to download YouTube video (for transcription)...');
-                        const fetchResp = await fetch('/fetch', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });
-                        const fetchData = await fetchResp.json();
-                        if (fetchResp.status !== 202) throw new Error(fetchData.error || 'Could not start server-side fetch');
-                        const videoId = fetchData.video_id;
-                        // poll server for fetch status
-                        let serverPath = null;
-                        updateStatus('Server downloading video...');
-                        while (true) {
-                            await new Promise(r => setTimeout(r, 1500));
-                            const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
-                            const sinfo = await sresp.json();
-                            if (sinfo.status === 'Ready') { serverPath = sinfo.path; break; }
-                            if (sinfo.status === 'Error') throw new Error(sinfo.error || 'Server fetch failed');
-                        }
-                        if (!serverPath) throw new Error('Could not obtain downloaded video path from server');
-                        uploadedVideoPath = serverPath;
-                        isYouTube = false;
-                        videoPlayer.style.display = 'block';
-                        videoPlayer.src = uploadedVideoPath;
-                    } else {
-                        isYouTube = false;
-                        videoPlayer.style.display = 'block';
-                        videoPlayer.src = uploadedVideoPath;
-                    }
                 }
 
-                // 2. Start async extraction job (server will slice & transcribe)
-                updateStatus('Starting transcription job...');
+                updateStatus('Transcribing...', true);
                 const model = modelSelect.value;
                 const useFaster = document.getElementById('useFasterCheck').checked;
-                // map source language label to language code for transcription
                 const selectedSourceLang = sourceLangSelect.value;
                 const langCodeMap = { 'English': 'en', 'Chinese': 'zh' };
                 const transcribeLangCode = langCodeMap[selectedSourceLang] || null;
+
                 const startResp = await fetch('/extract_async', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ video_path: uploadedVideoPath, model: model, segment_time: 300, use_faster: useFaster, language: transcribeLangCode })
+                    body: JSON.stringify({
+                        video_path: uploadedVideoPath,
+                        model: model,
+                        segment_time: 300,
+                        use_faster: useFaster,
+                        language: transcribeLangCode
+                    })
                 });
                 const startData = await startResp.json();
-                if (startResp.status !== 202) throw new Error(startData.error || 'Could not start extraction job');
+                if (startResp.status !== 202) throw new Error(startData.error || 'Start extraction failed');
                 const jobId = startData.job_id;
 
-                // Poll job status
-                updateStatus('Transcribing (this may take a while)...');
                 const jobPoll = setInterval(async () => {
                     try {
                         const sresp = await fetch(`/extract/status?job_id=${encodeURIComponent(jobId)}`);
                         const sdata = await sresp.json();
+
                         if (sdata.state === 'running' || sdata.state === 'queued') {
-                            updateStatus(`${sdata.message} (${sdata.percent || 0}%)`);
-                                if (sdata.vtt_partial) {
+                            updateStatus(`${sdata.message} (${sdata.percent || 0}%)`, true);
+                            updateProgress(sdata.percent || 0);
+
+                            if (sdata.vtt_partial) {
                                 originalVttContent = 'WEBVTT\n\n' + sdata.vtt_partial;
                                 originalSubtitlesEl.innerText = originalVttContent;
-                                // update video tracks according to selected mode
                                 updateVideoTracks();
                             }
                         } else if (sdata.state === 'done') {
                             clearInterval(jobPoll);
                             originalVttContent = sdata.vtt_content;
                             originalSubtitlesEl.innerText = originalVttContent;
-                            // update video tracks according to selected mode
                             updateVideoTracks();
 
-                            updateStatus('Transcription complete. Translating...');
-                            // Proceed to translation as before
+                            // Start Translation
+                            updateStatus('Translating...', true);
                             const sourceLang = sourceLangSelect.value;
                             const targetLang = targetLangSelect.value;
+
                             const translateResponse = await fetch('/translate', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -955,53 +975,31 @@
                                     video_path: uploadedVideoPath
                                 })
                             });
+
                             const translateData = await translateResponse.json();
                             if (translateData.error) throw new Error(translateData.error);
+
                             translatedVttContent = translateData.translated_vtt_content;
                             translatedSubtitlesEl.innerText = translatedVttContent;
-                            updateStatus('Process complete!', false);
+                            updateVideoTracks();
+
+                            updateStatus('Complete', false);
                         } else if (sdata.state === 'error') {
                             clearInterval(jobPoll);
                             throw new Error(sdata.message || 'Extraction error');
                         }
                     } catch (err) {
                         clearInterval(jobPoll);
-                        updateStatus(`Error during transcription: ${err.message}`, true);
+                        updateStatus(`Error: ${err.message}`, true);
                     }
                 }, 3000);
 
-                // update video tracks according to selected mode
-                updateVideoTracks();
-
-
-                // 3. Translate subtitles
-                updateStatus('Translating subtitles...');
-                const sourceLang = sourceLangSelect.value;
-                const targetLang = targetLangSelect.value;
-                const translateResponse = await fetch('/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        vtt_content: originalVttContent,
-                        source_lang: sourceLang,
-                        target_lang: targetLang,
-                        video_path: uploadedVideoPath
-                    })
-                });
-                const translateData = await translateResponse.json();
-                if (translateData.error) throw new Error(translateData.error);
-
-                translatedVttContent = translateData.translated_vtt_content;
-                translatedSubtitlesEl.innerText = translatedVttContent;
-
-                updateStatus('Process complete!', false);
-
             } catch (error) {
-                updateStatus(`Error: ${error.message}`, true);
-                console.error('Processing error:', error);
+                updateStatus(`Error: ${error.message}`, false);
             }
         }
 
+        // Download Handlers
         function downloadVTT(filename, vttContent) {
             const blob = new Blob([vttContent], { type: 'text/vtt' });
             const url = URL.createObjectURL(blob);
@@ -1022,17 +1020,17 @@
         downloadTranslatedBtn.addEventListener('click', () => {
             const sourceLang = sourceLangSelect.value;
             const targetLang = targetLangSelect.value;
-            const filename = uploadedVideoPath
-                ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${sourceLang}_to_${targetLang}.vtt`
-                : `translated_${sourceLang}_to_${targetLang}.vtt`;
+            const filename = uploadedVideoPath ? `${uploadedVideoPath.split('/').pop().split('.')[0]}_${sourceLang}_to_${targetLang}.vtt` : 'translated.vtt';
             downloadVTT(filename, translatedSubtitlesEl.innerText);
         });
 
-    // Enhance Download buttons with inline SVG icons
-    downloadOriginalBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
-    downloadTranslatedBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle; margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5-5 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Download VTT';
+        // File Input Name Update
+        videoFileInput.addEventListener('change', function() {
+            const name = this.files.length > 0 ? this.files[0].name : 'No file selected';
+            document.getElementById('selectedVideoName').textContent = name;
+        });
 
-        // Subtitle style controls: color and font size
+        // Style Controls
         const subtitleColorEl = document.getElementById('subtitleColor');
         const subtitleSizeEl = document.getElementById('subtitleSize');
         const subtitleSizeValEl = document.getElementById('subtitleSizeVal');
@@ -1040,229 +1038,134 @@
         function applySubtitleStyles() {
             const color = subtitleColorEl.value || '#ffffff';
             const size = (subtitleSizeEl.value || '18') + 'px';
-            // Apply to overlay
             const overlay = document.getElementById('subtitleOverlay');
             overlay.style.color = color;
             overlay.style.fontSize = size;
-            // Update displayed size
             subtitleSizeValEl.innerText = size;
-            // Inject ::cue style for native video tracks
+
             let cueStyle = document.getElementById('generatedCueStyle');
             if (!cueStyle) {
                 cueStyle = document.createElement('style');
                 cueStyle.id = 'generatedCueStyle';
                 document.head.appendChild(cueStyle);
             }
-            cueStyle.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 0 6px black !important; }`;
+            cueStyle.innerHTML = `video::cue { color: ${color} !important; font-size: ${size} !important; text-shadow: 0 2px 4px black !important; background: transparent !important; }`;
         }
 
         subtitleColorEl.addEventListener('input', applySubtitleStyles);
         subtitleSizeEl.addEventListener('input', applySubtitleStyles);
-
-        // Initialize styles on load
         applySubtitleStyles();
 
-    // --- Model Management ---
-    let statusInterval;
+        // Model Management Logic
+        let statusInterval;
 
         async function populateModelStatus() {
-            // 1. Set loading state immediately
-            const loadingHTML = '<li class="list-group-item text-muted"><em>Loading...</em></li>';
-            whisperModelList.innerHTML = loadingHTML;
-            translationModelList.innerHTML = loadingHTML;
+            const loadingHTML = '<li class="text-gray-500 text-sm py-2 italic">Loading...</li>';
+            const wList = document.getElementById('whisperModelList');
+            const tList = document.getElementById('translationModelList');
+            wList.innerHTML = loadingHTML;
+            tList.innerHTML = loadingHTML;
 
             try {
                 const response = await fetch('/models/status');
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error('Status fetch failed');
                 const statuses = await response.json();
 
-                    // Populate Whisper models
-                    const whisperModelList = document.getElementById('whisperModelList');
-                    whisperModelList.innerHTML = '';
-                    if (Object.keys(statuses.whisper).length === 0) {
-                        whisperModelList.innerHTML = '<li class="list-group-item text-muted"><em>No models found.</em></li>';
-                    } else {
-                        for (const [model, status] of Object.entries(statuses.whisper)) {
-                            const li = document.createElement('li');
-                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                            li.innerHTML = `
-                                <span>${model}</span>
-                                ${createStatusBadge(status, 'whisper', model)}
-                            `;
-                            whisperModelList.appendChild(li);
-                        }
+                // Whisper
+                wList.innerHTML = '';
+                if (Object.keys(statuses.whisper).length === 0) wList.innerHTML = '<li class="text-gray-400 text-sm">No models found</li>';
+                else {
+                    for (const [model, status] of Object.entries(statuses.whisper)) {
+                        const li = document.createElement('li');
+                        li.className = 'flex justify-between items-center py-3 border-b border-gray-100 last:border-0';
+                        li.innerHTML = `
+                            <span class="text-sm font-medium text-gray-700">${model}</span>
+                            ${createStatusBadge(status, 'whisper', model)}
+                        `;
+                        wList.appendChild(li);
                     }
+                }
 
-                // Populate Translation models
-                const translationModelList = document.getElementById('translationModelList');
-                translationModelList.innerHTML = '';
-                if (translationPairs.length === 0) {
-                    translationModelList.innerHTML = '<li class="list-group-item text-muted"><em>No translation models found.</em></li>';
-                } else {
+                // Translation
+                tList.innerHTML = '';
+                if (translationPairs.length === 0) tList.innerHTML = '<li class="text-gray-400 text-sm">No pairs found</li>';
+                else {
                     for (const pair of translationPairs) {
                         const status = statuses.translation[pair.model] || 'Not Found';
                         const li = document.createElement('li');
-                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        li.className = 'flex justify-between items-center py-3 border-b border-gray-100 last:border-0';
                         li.innerHTML = `
-                            <span class="d-flex flex-column">
-                                <span>${pair.source} &rarr; ${pair.target}</span>
-                                <small class="text-muted">${pair.model}</small>
-                            </span>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-gray-700">${pair.source} &rarr; ${pair.target}</span>
+                                <span class="text-xs text-gray-400">${pair.model}</span>
+                            </div>
                             ${createStatusBadge(status, 'translation', pair.model)}
                         `;
-                        translationModelList.appendChild(li);
+                        tList.appendChild(li);
                     }
                 }
-
-            } catch (error) {
-                // 2. Display error message in the UI
-                console.error("Could not fetch model statuses:", error);
-                const errorHTML = `<li class="list-group-item text-danger"><strong>Error:</strong> Could not load model statuses. Please ensure the server is running and accessible.</li>`;
-                whisperModelList.innerHTML = errorHTML;
-                translationModelList.innerHTML = errorHTML;
+            } catch (e) {
+                console.error(e);
+                const err = '<li class="text-red-500 text-sm">Error loading status</li>';
+                wList.innerHTML = err;
+                tList.innerHTML = err;
             }
         }
 
-
-        function createStatusBadge(status, modelType, modelKey) {
+        function createStatusBadge(status, type, key) {
             if (status === 'Ready') {
-                return `<span class="badge bg-success me-2"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M20 6L9 17l-5-5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Ready</span><button class="btn btn-sm btn-outline-danger ms-2 delete-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M3 6h18\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M14 11v6\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Delete</button>`;
+                return `<div class="flex items-center space-x-2">
+                    <span class="px-2 py-1 bg-green-50 text-green-600 text-xs rounded-md font-medium">Ready</span>
+                    <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors" data-type="${type}" data-key="${key}">
+                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>`;
             }
             if (status === 'Downloading...') {
-                return `<span class="badge bg-warning"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Downloading...</span>`;
+                return `<span class="px-2 py-1 bg-yellow-50 text-yellow-600 text-xs rounded-md font-medium animate-pulse">Downloading...</span>`;
             }
-            return `<button class="btn btn-sm btn-outline-primary download-btn" data-type="${modelType}" data-key="${modelKey}"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" style=\"vertical-align:middle; margin-right:6px;\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M7 10l5-5 5 5\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 5v14\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Download</button>`;
+            return `<button class="download-btn px-3 py-1 bg-blue-50 text-[#0071E3] text-xs rounded-full font-medium hover:bg-blue-100 transition-colors" data-type="${type}" data-key="${key}">Download</button>`;
         }
 
-        async function handleModelManagementClick(e) {
-            if (e.target.classList.contains('download-btn')) {
-                const btn = e.target;
-                const modelType = btn.dataset.type;
-                const modelKey = btn.dataset.key;
-                btn.disabled = true;
-                btn.outerHTML = createStatusBadge('Downloading...', modelType, modelKey);
+        // Event Delegation for Model Buttons
+        document.getElementById('modelManagementModal').addEventListener('click', async (e) => {
+            if (e.target.closest('.download-btn')) {
+                const btn = e.target.closest('.download-btn');
+                const { type, key } = btn.dataset;
+                btn.replaceWith(document.createRange().createContextualFragment(`<span class="px-2 py-1 bg-yellow-50 text-yellow-600 text-xs rounded-md font-medium">Req...</span>`));
+
                 try {
                     await fetch('/models/download', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
+                        body: JSON.stringify({ model_type: type, model_key: key })
                     });
-                    if (!statusInterval) {
-                        statusInterval = setInterval(async () => {
-                            await populateModelStatus();
-                        }, 5000);
-                    }
-                } catch (error) {
-                    populateModelStatus();
-                }
+                    if (!statusInterval) statusInterval = setInterval(populateModelStatus, 4000);
+                    setTimeout(populateModelStatus, 500);
+                } catch (err) { populateModelStatus(); }
             }
-            if (e.target.classList.contains('delete-btn')) {
-                const btn = e.target;
-                const modelType = btn.dataset.type;
-                const modelKey = btn.dataset.key;
-                btn.disabled = true;
-                btn.outerHTML = '<span class="badge bg-secondary">Deleting...</span>';
+
+            if (e.target.closest('.delete-btn')) {
+                const btn = e.target.closest('.delete-btn');
+                const { type, key } = btn.dataset;
+                if(!confirm('Are you sure?')) return;
+
                 try {
                     await fetch('/models/delete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model_type: modelType, model_key: modelKey })
+                        body: JSON.stringify({ model_type: type, model_key: key })
                     });
-                    await populateModelStatus();
-                } catch (error) {
-                    populateModelStatus();
-                }
+                    setTimeout(populateModelStatus, 500);
+                } catch (err) { populateModelStatus(); }
             }
-        }
-
-        // Attach modal event listeners after DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            const modelManagementModal = document.getElementById('modelManagementModal');
-            if (!modelManagementModal) return;
-            modelManagementModal.addEventListener('show.bs.modal', populateModelStatus);
-            modelManagementModal.addEventListener('hide.bs.modal', () => {
-                if (statusInterval) clearInterval(statusInterval);
-                statusInterval = null;
-            });
-            modelManagementModal.addEventListener('click', handleModelManagementClick);
         });
 
-
-    </script>
-
-  <!-- 模型管理模态框 -->
-  <div id="modelManagementModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
-    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-xl bg-white">
-      <div class="mt-3">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-semibold text-gray-900">模型管理</h3>
-          <button onclick="closeModelModal()" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Whisper 模型 -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <h4 class="text-lg font-medium text-gray-900 mb-4">转录模型 (Whisper)</h4>
-            <ul id="whisperModelList" class="space-y-2">
-              <!-- 通过 JS 填充 -->
-            </ul>
-          </div>
-
-          <!-- 翻译模型 -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <h4 class="text-lg font-medium text-gray-900 mb-4">翻译模型 (Helsinki-NLP)</h4>
-            <ul id="translationModelList" class="space-y-2">
-              <!-- 通过 JS 填充 -->
-            </ul>
-          </div>
-        </div>
-
-        <div class="flex justify-end mt-6">
-          <button onclick="closeModelModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors duration-200">
-            关闭
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-        // 初始化页面
-        document.addEventListener('DOMContentLoaded', function() {
-            updateStatus('空闲中');
-            populateLanguages();
-            populateModels();
-            
-            // 字幕大小滑块事件
-            const subtitleSize = document.getElementById('subtitleSize');
-            const subtitleSizeVal = document.getElementById('subtitleSizeVal');
-            
-            subtitleSize.addEventListener('input', function() {
-                subtitleSizeVal.textContent = this.value + 'px';
-            });
-            
-            // 文件选择事件
-            const videoFileInput = document.getElementById('videoFile');
-            const selectedVideoName = document.getElementById('selectedVideoName');
-            
-            videoFileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    selectedVideoName.value = this.files[0].name;
-                    selectedVideoName.className = 'mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm text-gray-900';
-                } else {
-                    selectedVideoName.value = '未选择视频文件';
-                    selectedVideoName.className = 'mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm text-gray-900';
-                }
-            });
-            
-
+        // Clean interval on close
+        document.getElementById('modelManagementModal').addEventListener('click', (e) => {
+           if(e.target.id === 'modelManagementModal') closeModelModal();
         });
+
     </script>
 </body>
 </html>

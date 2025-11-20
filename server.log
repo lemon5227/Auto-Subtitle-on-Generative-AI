@@ -1,0 +1,7 @@
+127.0.0.1 - - [20/Nov/2025 20:56:17] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [20/Nov/2025 20:56:18] "GET /app.html HTTP/1.1" 200 -
+127.0.0.1 - - [20/Nov/2025 20:56:18] code 404, message File not found
+127.0.0.1 - - [20/Nov/2025 20:56:18] "GET /models HTTP/1.1" 404 -
+127.0.0.1 - - [20/Nov/2025 20:56:18] "GET /realtime.html HTTP/1.1" 200 -
+127.0.0.1 - - [20/Nov/2025 20:56:18] code 404, message File not found
+127.0.0.1 - - [20/Nov/2025 20:56:18] "GET /socket.io/?EIO=4&transport=polling&t=PgZ3S1A HTTP/1.1" 404 -
