@@ -133,6 +133,105 @@ The core logic is modularized within the `src/ai_subtitle_generator` package:
     - Handles caching locally to prevent re-downloading the same content.
     - Returns a distinct local filepath for processing.
 
-### 4. GPU Optimization (`gpu_detector.py`)
-- Automatically detects available hardware (`CUDA`, `MPS` for Mac, or `CPU`).
 - Optimizes memory usage by loading models only when needed and using thread locks (`Lock`) for model access to prevent race conditions during concurrent requests.
+ 
+ ## API Documentation
+ 
+ The backend exposes a RESTful API for integration with other services.
+ 
+ ### Video Management
+ 
+ #### 1. Fetch Video (URL)
+ - **Endpoint**: `POST /fetch`
+ - **Body**:
+   ```json
+   { "url": "https://youtube.com/watch?v=..." }
+   ```
+ - **Response**:
+   ```json
+   { "video_id": "uuid", "message": "Download started" }
+   ```
+ 
+ #### 2. Check Fetch Status
+ - **Endpoint**: `GET /fetch/status?video_id=<video_id>`
+ - **Response**:
+   ```json
+   { "status": "Ready", "path": "./save/video.mp4", "error": null }
+   ```
+ 
+ #### 3. Upload Video
+ - **Endpoint**: `POST /upload`
+ - **Form-Data**: `file` (Binary file)
+ - **Response**:
+   ```json
+   { "video_path": "./save/filename.mp4" }
+   ```
+ 
+ ### Subtitle Extraction
+ 
+ #### 1. Start Extraction (Async)
+ - **Endpoint**: `POST /extract_async`
+ - **Body**:
+   ```json
+   {
+     "video_path": "./save/video.mp4",
+     "model": "medium",      // tiny, base, small, medium, large
+     "language": "en",       // optional, auto-detect if null
+     "use_faster": true      // use faster-whisper backend
+   }
+   ```
+ - **Response**:
+   ```json
+   { "job_id": "uuid" }
+   ```
+ 
+ #### 2. Check Extraction Status
+ - **Endpoint**: `GET /extract/status?job_id=<job_id>`
+ - **Response**:
+   ```json
+   {
+     "state": "running",     // queued, running, done, error
+     "percent": 45,
+     "message": "Transcribing...",
+     "vtt_content": "WEBVTT..." // Included when state is 'done'
+   }
+   ```
+ 
+ ### Translation Services
+ 
+ #### 1. Translate Subtitles (VTT)
+ - **Endpoint**: `POST /translate`
+ - **Body**:
+   ```json
+   {
+     "vtt_content": "WEBVTT...",
+     "source_lang": "en",
+     "target_lang": "zh",
+     "video_path": "./save/video.mp4"
+   }
+   ```
+ - **Response**:
+   ```json
+   { "translated_vtt_content": "WEBVTT..." }
+   ```
+ 
+ #### 2. Translate Text (Raw)
+ - **Endpoint**: `POST /api/translate`
+ - **Body**:
+   ```json
+   {
+     "text": "Hello World",
+     "source_lang": "en",
+     "target_lang": "zh",
+     "use_qwen": false
+   }
+   ```
+ - **Response**:
+   ```json
+   { "translated_text": "你好世界" }
+   ```
+ 
+ ### System
+ 
+ - `GET /models`: List available Whisper models.
+ - `GET /translation_pairs`: List supported translation language pairs.
