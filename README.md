@@ -75,28 +75,35 @@ This project is built using the following technologies:
     - Choose Display Mode (Original/Translated/Bilingual).
     - Click "Generate Subtitles".
 
-## Docker Support (GPU Accelerated)
-
-You can run this application in a Docker container with full GPU acceleration using the NVIDIA Container Toolkit.
-
-### Prerequisites
-- Docker Engine
-- NVIDIA Container Toolkit installed on the host machine.
-
-### Build & Run
-
-1.  **Build the Image:**
-    ```bash
-    docker build -t ai-subtitle-studio .
-    ```
-
-2.  **Run the Container:**
-    ```bash
-    docker run --gpus all -d -p 7860:7860 --name subtitle-studio ai-subtitle-studio
-    ```
-
-3.  **Access:**
-    Open `http://localhost:7860` in your browser.
+## Docker Support (Optimized)
+ 
+ This application is packaged with a lightweight, GPU-ready Docker image based on `python:3.10-slim`.
+ 
+ ### Prerequisites
+ - Docker Engine
+ - NVIDIA Container Toolkit (for GPU acceleration)
+ 
+ ### Build & Run
+ 
+ 1.  **Build the Image:**
+     ```bash
+     docker build -t ai-subtitle-studio .
+     ```
+     *Note: The first build handles large AI dependencies (Torch, CUDA libs) so it may take some time depending on your network.*
+ 
+ 2.  **Run with GPU (Recommended):**
+     ```bash
+     docker run --gpus all -d -p 7860:7860 --name subtitle-studio ai-subtitle-studio
+     ```
+ 
+ 3.  **Run on CPU (Optional):**
+     If you don't have a GPU, you can run it in CPU mode (slower):
+     ```bash
+     docker run -d -p 7860:7860 --name subtitle-studio ai-subtitle-studio
+     ```
+ 
+ 4.  **Access:**
+     Open `http://localhost:7860` in your browser.
 
 ## Implementation Details
 

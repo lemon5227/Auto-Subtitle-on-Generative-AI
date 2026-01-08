@@ -1,0 +1,8 @@
+save/
+.git/
+venv/
+__pycache__/
+*.mp4
+*.mp3
+.env
+.DS_Store

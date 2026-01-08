@@ -1,17 +1,15 @@
-# Use NVIDIA CUDA base image for GPU support
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# Use official Python slim image
+# significantly smaller than nvidia/cuda base
+# PyTorch wheels will provide necessary CUDA runtime libraries
+FROM python:3.10-slim
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies
-# ffmpeg is crucial for audio processing (whisper/yt-dlp)
-# git is needed for some pip installs if from git
+# ffmpeg is crucial for audio processing
+# git is needed for pip installs from git
 RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3-pip \
-    python3-venv \
     ffmpeg \
     git \
     && rm -rf /var/lib/apt/lists/*
@@ -24,7 +22,8 @@ COPY requirements.txt .
 
 # Install Python dependencies
 # Use --no-cache-dir to keep image size small
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Increase timeout for large downloads
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
