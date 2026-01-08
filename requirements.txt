@@ -1,0 +1,11 @@
+flask
+yt-dlp
+openai-whisper
+torch
+numpy
+transformers
+accelerate
+flask-socketio
+sentencepiece
+sacremoses
+requests
