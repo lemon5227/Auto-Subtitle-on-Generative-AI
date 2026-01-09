@@ -611,6 +611,8 @@
         let uploadedVideoPath = '';
         let translationPairs = []; // To store the fetched translation pairs
         let isYouTube = false;
+        let isBilibili = false;
+        let currentBilibiliId = null;
         let ytPlayer = null;
         let overlayTimer = null;
         let _pendingYtId = null;
@@ -677,52 +679,26 @@
             const oldTracks = videoPlayer.querySelectorAll('track[data-generated]');
             oldTracks.forEach(t => t.remove());
 
+            // Disable ALL native text tracks to prevent duplicate subtitles
+            if (videoPlayer.textTracks) {
+                for (let i = 0; i < videoPlayer.textTracks.length; i++) {
+                    videoPlayer.textTracks[i].mode = 'disabled';
+                }
+            }
+
             const mode = subtitleModeSelect ? subtitleModeSelect.value : 'original';
-            // If using iframe (YouTube), show overlay instead of native track
             const subtitleOverlay = document.getElementById('subtitleOverlay');
-            if (isYouTube) {
+
+            // Always show draggable overlay when we have subtitle content
+            const hasSubtitles = originalVttContent || translatedVttContent;
+            if (hasSubtitles) {
                 subtitleOverlay.style.display = 'block';
                 startOverlaySync();
             } else {
                 subtitleOverlay.style.display = 'none';
                 stopOverlaySync();
             }
-            if (mode === 'original' && originalVttContent) {
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Original';
-                    track.srclang = 'en';
-                    track.src = URL.createObjectURL(new Blob([originalVttContent], { type: 'text/vtt' }));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-            } else if (mode === 'translated' && translatedVttContent) {
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Translated';
-                    track.srclang = 'zh';
-                    track.src = URL.createObjectURL(new Blob([translatedVttContent], { type: 'text/vtt' }));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-            } else if (mode === 'bilingual' && originalVttContent && translatedVttContent) {
-                const merged = buildBilingualVtt(originalVttContent, translatedVttContent);
-                if (!isYouTube) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Bilingual';
-                    track.srclang = 'zh-en';
-                    track.src = URL.createObjectURL(new Blob([merged], { type: 'text/vtt' }));
-                    track.setAttribute('data-generated', '1');
-                    track.default = true;
-                    videoPlayer.appendChild(track);
-                }
-                // if YouTube, ensure overlay is enabled - overlay rendering happens in sync loop
-            }
+            // We only use the draggable overlay for subtitles now
         }
 
         if (subtitleModeSelect) {
@@ -918,11 +894,22 @@
                 };
             })();
 
-            function getYouTubeIdFromUrl(url) {
+            function getVideoInfoFromUrl(url) {
                 try {
                     const u = new URL(url);
-                    if (u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v');
-                    if (u.hostname === 'youtu.be') return u.pathname.slice(1);
+                    // YouTube
+                    if (u.hostname.includes('youtube.com')) return { type: 'youtube', id: new URLSearchParams(u.search).get('v') };
+                    if (u.hostname === 'youtu.be') return { type: 'youtube', id: u.pathname.slice(1) };
+
+                    // Bilibili
+                    // Matches BV IDs (e.g., BV1Le4y1P7oF)
+                    if (u.hostname.includes('bilibili.com')) {
+                        const pathError = u.pathname.split('/');
+                        // usually /video/BV...
+                        for (const seg of pathError) {
+                            if (seg.startsWith('BV')) return { type: 'bilibili', id: seg };
+                        }
+                    }
                 } catch (e) { /* ignore */ }
                 return null;
             }
@@ -944,46 +931,89 @@
             previewBtnEl.addEventListener('click', async (ev) => {
                 ev.preventDefault();
                 const url = (document.getElementById('videoUrlInput') || {}).value || '';
-                if (!url) return alert('Please enter a YouTube URL to preview');
-                const vid = getYouTubeIdFromUrl(url.trim());
-                if (!vid) return alert('Not a valid YouTube URL');
-                try {
-                    const YT = await youtubeApiPromise();
+                if (!url) return alert('Please enter a Video URL to preview');
+                const info = getVideoInfoFromUrl(url.trim());
+                if (!info || !info.id) return alert('Not a valid YouTube or Bilibili URL');
 
+                try {
                     cleanupYouTubePlayer(); // Clean up previous
 
-                    // Hide native video element
-                    videoPlayer.pause();
-                    videoPlayer.style.display = 'none';
-                    isYouTube = true;
-                    // Insert container for YT player
-                    const container = document.getElementById('playerContainer');
-                    const div = document.createElement('div');
-                    div.id = 'youtubeIframe';
-                    div.style.width = '100%';
-                    div.style.height = '480px';
-                    container.appendChild(div);
+                    if (info.type === 'youtube') {
+                        // YouTube: use iframe embed
+                        videoPlayer.pause();
+                        videoPlayer.style.display = 'none';
+                        isYouTube = true;
+                        isBilibili = false;
 
-                    // Create YT player
-                    ytPlayer = new YT.Player('youtubeIframe', {
-                        height: '480',
-                        width: '100%',
-                        videoId: vid,
-                        playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
-                        events: {
-                            onReady: (e) => {
-                                // Start overlay sync (user can press play in the embedded player)
-                                document.getElementById('subtitleOverlay').style.display = 'block';
-                                startOverlaySync();
-                            },
-                            onStateChange: (e) => {
-                                // keep overlay in sync; nothing else required here
+                        const container = document.getElementById('playerContainer');
+                        const div = document.createElement('div');
+                        div.id = 'youtubeIframe';
+                        div.style.width = '100%';
+                        div.style.height = '100%';
+                        div.style.position = 'absolute';
+                        div.style.top = '0';
+                        div.style.left = '0';
+                        container.appendChild(div);
+
+                        const YT = await youtubeApiPromise();
+                        ytPlayer = new YT.Player('youtubeIframe', {
+                            height: '100%',
+                            width: '100%',
+                            videoId: info.id,
+                            playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
+                            events: {
+                                onReady: (e) => {
+                                    document.getElementById('subtitleOverlay').style.display = 'block';
+                                    startOverlaySync();
+                                },
+                                onStateChange: (e) => { }
                             }
-                        }
-                    });
+                        });
+                    } else if (info.type === 'bilibili') {
+                        // Bilibili: use fetch to download, then native player
+                        isYouTube = false;
+                        isBilibili = false; // Using native player, not bilibili embed
+
+                        updateStatus('Fetching Bilibili video...', true);
+                        const resp = await fetch('/fetch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: url.trim() })
+                        });
+                        const data = await resp.json();
+                        if (data.error) throw new Error(data.error || 'Fetch failed');
+                        const videoId = data.video_id;
+
+                        // Poll status
+                        const poll = setInterval(async () => {
+                            try {
+                                const sresp = await fetch(`/fetch/status?video_id=${encodeURIComponent(videoId)}`);
+                                const sinfo = await sresp.json();
+                                if (sinfo.status === 'Downloading...') {
+                                    updateStatus('Downloading Bilibili video...');
+                                } else if (sinfo.status === 'Ready') {
+                                    clearInterval(poll);
+                                    uploadedVideoPath = sinfo.path;
+                                    // Convert absolute path to relative /save/ URL
+                                    const filename = uploadedVideoPath.split('/').pop();
+                                    const videoUrl = `/save/${filename}`;
+                                    videoPlayer.style.display = 'block';
+                                    videoPlayer.src = videoUrl;
+                                    updateStatus('Ready to play');
+                                } else if (sinfo.status === 'Error') {
+                                    clearInterval(poll);
+                                    updateStatus(`Fetch error: ${sinfo.error}`, true);
+                                }
+                            } catch (err) {
+                                clearInterval(poll);
+                                updateStatus(`Error: ${err.message}`, true);
+                            }
+                        }, 2000);
+                    }
+
                 } catch (err) {
-                    console.error('YouTube preview error', err);
-                    alert('YouTube preview failed: ' + (err && err.message ? err.message : err));
+                    console.error('Preview error', err);
+                    alert('Preview failed: ' + (err && err.message ? err.message : err));
                 }
             });
         };
@@ -1196,14 +1226,18 @@
         const subtitleSizeValEl = document.getElementById('subtitleSizeVal');
 
         function applySubtitleStyles() {
-            const color = subtitleColorEl.value || '#ffffff';
-            const size = (subtitleSizeEl.value || '18') + 'px';
+            const color = subtitleColorEl ? subtitleColorEl.value : '#ffffff';
+            const size = (subtitleSizeEl ? subtitleSizeEl.value : '18') + 'px';
             // Apply to overlay
             const overlay = document.getElementById('subtitleOverlay');
-            overlay.style.color = color;
-            overlay.style.fontSize = size;
-            // Update displayed size
-            subtitleSizeValEl.innerText = size;
+            if (overlay) {
+                overlay.style.color = color;
+                overlay.style.fontSize = size;
+            }
+            // Update displayed size if element exists
+            if (subtitleSizeValEl) {
+                subtitleSizeValEl.innerText = size;
+            }
             // Inject ::cue style for native video tracks
             let cueStyle = document.getElementById('generatedCueStyle');
             if (!cueStyle) {
@@ -1502,11 +1536,18 @@
         });
 
         // YouTube (using interval since API events might be sparse or not exposing timeupdate)
+        // Also for Bilibili, track the last seek time for highlighting
+        let bilibiliLastSeekTime = 0;
         setInterval(() => {
             if (isYouTube && ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && ytPlayer.getPlayerState() === 1) {
                 const t = ytPlayer.getCurrentTime();
                 highlightActiveSubtitle(t, 'originalSubtitles');
                 highlightActiveSubtitle(t, 'translatedSubtitles');
+            } else if (isBilibili && bilibiliLastSeekTime >= 0) {
+                // For Bilibili, we highlight based on last seek time
+                // Since we can't get current time from cross-origin iframe
+                highlightActiveSubtitle(bilibiliLastSeekTime, 'originalSubtitles');
+                highlightActiveSubtitle(bilibiliLastSeekTime, 'translatedSubtitles');
             }
         }, 200);
 
@@ -1515,10 +1556,20 @@
         function seekVideo(time) {
             if (isYouTube && ytPlayer && typeof ytPlayer.seekTo === 'function') {
                 ytPlayer.seekTo(time, true);
-                // consistent play state if needed
+            } else if (isBilibili && currentBilibiliId) {
+                // Bilibili: reload iframe with t= parameter (in seconds, as integer)
+                bilibiliLastSeekTime = time;
+                const existingDiv = document.getElementById('embeddedPlayer');
+                if (existingDiv) {
+                    existingDiv.innerHTML = `<iframe src="https://player.bilibili.com/player.html?bvid=${currentBilibiliId}&page=1&high_quality=1&danmaku=0&t=${Math.floor(time)}" 
+                                               allow="fullscreen" 
+                                               style="width:100%; height:100%; border:none;"></iframe>`;
+                }
+                // Immediately highlight the clicked subtitle
+                highlightActiveSubtitle(time, 'originalSubtitles');
+                highlightActiveSubtitle(time, 'translatedSubtitles');
             } else if (videoPlayer) {
                 videoPlayer.currentTime = time;
-                // Optional: videoPlayer.play();
             }
         }
 

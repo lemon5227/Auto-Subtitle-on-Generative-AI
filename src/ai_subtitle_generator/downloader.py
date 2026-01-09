@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import glob
 import shutil
@@ -14,8 +15,30 @@ class VideoDownloader:
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
+    def _preprocess_url(self, text: str) -> str:
+        """
+        Extract and clean URL from input text.
+        Handles:
+        1. Extracting URL from mixed text (e.g. "Title https://...")
+        2. Cleaning Bilibili URLs (removing tracking params)
+        """
+        # 1. Extract URL if mixed text
+        url_match = re.search(r'https?://[^\s]+', text)
+        url = url_match.group(0) if url_match else text.strip()
+
+        # 2. Clean Bilibili URL
+        # Remove query parameters for bilibili.com videos
+        if 'bilibili.com/video/' in url:
+            url = url.split('?')[0]
+            if url.endswith('/'):
+                url = url[:-1]
+        
+        return url
+
+
     def get_video_id(self, url: str) -> str:
         """Get a stable ID for the video URL"""
+        url = self._preprocess_url(url)
         if ytdlp_api is not None:
             try:
                 with ytdlp_api.YoutubeDL({'quiet': True}) as ydl:
@@ -40,6 +63,7 @@ class VideoDownloader:
         Returns the absolute path to the downloaded file.
         Raises Exception on failure.
         """
+        url = self._preprocess_url(url)
         if not video_id:
             video_id = self.get_video_id(url)
 
