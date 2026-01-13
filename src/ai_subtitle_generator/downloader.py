@@ -95,7 +95,14 @@ class VideoDownloader:
             ydl_opts = {
                 'outtmpl': output_template,
                 'format': format_str,
-                'merge_output_format': 'mp4' if has_ffmpeg else None
+                'merge_output_format': 'mp4' if has_ffmpeg else None,
+                # Workaround for YouTube DRM experiment (issue #12563)
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web'],
+                        'player_skip': ['webpage', 'configs']
+                    }
+                }
             }
             with ytdlp_api.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -105,13 +112,15 @@ class VideoDownloader:
             
             # Check for ffmpeg for CLI as well
             has_ffmpeg = shutil.which('ffmpeg') is not None
+            # Workaround for YouTube DRM experiment (issue #12563)
+            extractor_args = '--extractor-args youtube:player_client=android,web;player_skip=webpage,configs'
             if has_ffmpeg:
                  format_spec = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
-                 cmd = ['yt-dlp', '-f', format_spec, '--merge-output-format', 'mp4', '-o', output_template, url]
+                 cmd = ['yt-dlp', '-f', format_spec, '--merge-output-format', 'mp4', extractor_args, '-o', output_template, url]
             else:
                  print("⚠️ ffmpeg not found. Falling back to single file download.")
                  format_spec = 'best[ext=mp4]/best'
-                 cmd = ['yt-dlp', '-f', format_spec, '-o', output_template, url]
+                 cmd = ['yt-dlp', '-f', format_spec, extractor_args, '-o', output_template, url]
                  
             subprocess.run(cmd, check=True)
 
